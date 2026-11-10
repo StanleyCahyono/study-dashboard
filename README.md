@@ -1,4 +1,35 @@
-# Study Dashboard (private)
+# Study
+
+A study planner that runs as a website on your phone:
+**https://stanleycahyono.github.io/study-dashboard/**
+
+- **Today:** current time, your next class, your next task.
+- **Tasks** and **Classes:** add what's due and your weekly schedule.
+- **More:** import a calendar file (.ics, e.g. from Canvas), back up and
+  restore, try demo data.
+- Your data is stored **only in your browser on your device**. Nothing is
+  uploaded; the page blocks requests to other sites. The website is public, but
+  everyone who opens it sees only their own data.
+- Works offline once opened. On iPhone: Safari → Share → **Add to Home Screen**.
+
+The app lives in [`web/`](web/) and is published by
+[`.github/workflows/pages.yml`](.github/workflows/pages.yml) on every push.
+
+```bash
+cd web
+npm ci
+npm run dev        # http://127.0.0.1:5173/study-dashboard/
+npm run e2e        # browser tests
+```
+
+---
+
+## Paused: self-hosted server version
+
+`backend/` and `frontend/` hold an earlier self-hosted version (FastAPI server
+reached over Tailscale). It's not deployed. Its notes are below and in
+`docs/`; read [AGENTS.md](AGENTS.md) before reviving it.
+
 
 A private, single-user study planner. It runs on an always-on free Google
 Cloud server (or your own PC) and you open it from your iPhone over Tailscale.

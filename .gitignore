@@ -9,6 +9,8 @@
 *.sdbk
 *.eml
 *.ics
+!web/e2e/fixtures/*.ics
+!backend/tests/fixtures/*.ics
 *.mbox
 *.pem
 *.key
@@ -32,6 +34,9 @@ __pycache__/
 .pytest_cache/
 node_modules/
 frontend/dist/
+web/dist/
+web/test-results/
+web/playwright-report/
 frontend/test-results/
 frontend/playwright-report/
 *.log

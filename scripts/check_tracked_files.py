@@ -16,8 +16,8 @@ ROOT = Path(__file__).resolve().parents[1]
 FORBIDDEN_SUFFIXES = {
     ".sqlite", ".sqlite3", ".db", ".db-wal", ".db-shm", ".sdbk", ".mbox", ".pem", ".key", ".p12", ".pfx",
 }
-# Synthetic .eml/.ics fixtures are allowed only under this directory.
-FIXTURE_DIR = "backend/tests/fixtures/"
+# Synthetic .eml/.ics fixtures are allowed only under these directories.
+FIXTURE_DIRS = ("backend/tests/fixtures/", "web/e2e/fixtures/")
 FIXTURE_ONLY_SUFFIXES = {".eml", ".ics"}
 
 EMAIL = re.compile(r"[A-Za-z0-9._%+-]+@([A-Za-z0-9-]+\.)+[A-Za-z]{2,}")
@@ -55,8 +55,8 @@ def scan(paths: list[str]) -> list[str]:
         if suffix in FORBIDDEN_SUFFIXES:
             problems.append(f"{rel}: forbidden file type {suffix}")
             continue
-        if suffix in FIXTURE_ONLY_SUFFIXES and not rel.startswith(FIXTURE_DIR):
-            problems.append(f"{rel}: {suffix} files are only allowed under {FIXTURE_DIR}")
+        if suffix in FIXTURE_ONLY_SUFFIXES and not rel.startswith(FIXTURE_DIRS):
+            problems.append(f"{rel}: {suffix} files are only allowed under {', '.join(FIXTURE_DIRS)}")
         data = path.read_bytes()
         if data.startswith(b"SQLite format 3"):
             problems.append(f"{rel}: SQLite database content")

@@ -1,5 +1,41 @@
 # Build status
 
+## Current: phone-only web app on GitHub Pages (2026-11-10)
+
+**Owner decision:** stop the self-hosted/cloud server setup; make the repo
+public and publish a static app at `https://<owner>.github.io/study-dashboard/`.
+The Google Cloud VM was created but never served the app; it should be deleted
+(owner action). The self-hosted code (`backend/`, `frontend/`) is kept but paused.
+
+`web/` (React 19 + TypeScript + Vite, no server):
+- Today (time, next class, next task, overdue count), Tasks (add, due date,
+  estimate, done, delete), Classes (courses, weekly class times), More (.ics
+  import, JSON backup export/restore, demo data, delete all, privacy note).
+- Data in localStorage only; CSP meta tag blocks any network requests to other
+  origins. Service worker caches only the site's own files for offline use.
+- .ics import: weekly RRULE → class times; other events → tasks; all-day →
+  11:59 PM "time not given"; course code from title/brackets; re-import updates
+  by UID; cancelled events skipped.
+
+Checks (fixture-verified, Linux container, Chromium):
+- `npm --prefix web run e2e`: **5 passed**: add course/times/task at 390 px,
+  persists across reload, mark done, **no requests to other origins**; .ics
+  import twice → no duplicates (2 tasks, 2 class times, 2 courses, cancelled
+  skipped); backup export/delete/restore and bad file rejected; works offline
+  after first visit (fixed: cache lookups needed `ignoreVary`); desktop
+  three-column layout.
+- `uv run pytest`: 47 passed (paused server code still green).
+
+Not verified (owner): repo visibility switch, Pages enabled with source
+"GitHub Actions", first workflow run, the site on the iPhone, Add to Home Screen.
+
+Not possible with a static site: Gmail/Calendar/Canvas background sync,
+notifications, sharing data between phone and PC (use backup export/restore).
+
+---
+
+## Earlier: self-hosted version (paused)
+
 Every phase updates this file. "Fixture-verified" means automated tests with
 synthetic data. "Live" means a real account or device, observed by the owner.
 
@@ -73,7 +109,7 @@ Physical test results (owner-reported, 2026-11-10; do not mark passed without an
 
 - Host install: `setup.ps1` finished green on the Windows ARM64 host (after the ARM fix below).
 - Owner enrolled on the host at http://127.0.0.1:8765/ and reached Today.
-- Tailscale: host named `desklaptop`; `tailscale serve --bg 8765` configured
+- Tailscale: host renamed to a neutral name; `tailscale serve --bg 8765` configured
   (owner initially saw "No serve config" and re-ran it); `studyctl config
   add-host` done; access policy replaced with the tcp:443-only grant and saved.
 - Phone signed in through the tailnet address and reached Today.
@@ -122,8 +158,6 @@ after the failure.
   `win32-arm64` packages in `package-lock.json`.
 - `setup.ps1` now checks every exit code and stops at the first failure.
 - `uv run pytest`: **40 passed** (Linux container). Not yet re-run on the host.
-- Smart App Control was turned off on the host by the owner while installing
-  developer tools. Defender Antivirus remains on.
 
 ## Phase 1b: always-on cloud host + encrypted phone copy (2026-11-10)
 

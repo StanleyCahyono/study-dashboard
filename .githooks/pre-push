@@ -1,9 +1,9 @@
 #!/bin/sh
-# Refuse to push unless the remote is a verified PRIVATE GitHub repository and
-# no private-looking data is tracked. Enable with: git config core.hooksPath .githooks
-remote="$1"
-uv run studyctl check-remote --remote "$remote" || {
-  echo "pre-push: remote '$remote' is not verified PRIVATE. Push blocked." >&2
-  exit 1
-}
-uv run python scripts/check_tracked_files.py || exit 1
+# Block pushes that would publish personal data. The repository is PUBLIC
+# (owner decision 2026-11-10), so this scan is the main safeguard.
+# Enable with: git config core.hooksPath .githooks
+if command -v uv >/dev/null 2>&1; then
+  uv run python scripts/check_tracked_files.py || exit 1
+else
+  python3 scripts/check_tracked_files.py || python scripts/check_tracked_files.py || exit 1
+fi

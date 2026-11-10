@@ -1,5 +1,25 @@
 # Agent instructions (read before changing anything)
 
+## Current direction (owner decision, 2026-11-10)
+
+The owner chose a **public repository** and a **GitHub Pages** site. The live
+app is the static, device-only web app in `web/`:
+
+- No server, no accounts, no network calls. All data stays in the browser's
+  localStorage on the device. Keep the CSP meta tag in `web/index.html`
+  (`connect-src 'self'`) so data cannot leave the device.
+- The repo is public: nothing personal may ever be committed (names of the
+  owner's devices, emails, course materials, grades, screenshots with real
+  data, tokens). `scripts/check_tracked_files.py` runs in the tests and the
+  pre-push hook; keep it passing.
+- Published by `.github/workflows/pages.yml` (public repo, free minutes;
+  minimal permissions; no secrets).
+- `backend/` + `frontend/` (the self-hosted Tailscale version) are **paused**.
+  The invariants below describe that version. They still apply if it is revived;
+  the "PRIVATE remote" rule no longer applies while the owner keeps the repo
+  public.
+
+
 This is a private, single-user study planner. It runs on an always-on host
 and is reached from the owner's iPhone over Tailscale. **Owner decision
 (2026-11-10):** the production host is a free-tier Google Cloud `e2-micro`
