@@ -71,7 +71,13 @@ rename the new server to something neutral (for example `node-3`) and note its
 
 ## 5. Download the app (read-only key, this repository only)
 
-**(server)** Create a key the server will use to read the code:
+**(server)** Install Git (the server image doesn't include it):
+
+```bash
+sudo apt-get update && sudo apt-get install -y git
+```
+
+Create a key the server will use to read the code:
 
 ```bash
 ssh-keygen -t ed25519 -f ~/.ssh/studydash_deploy -N "" -C "study server"
