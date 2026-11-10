@@ -1,6 +1,60 @@
 # Build status
 
-## Current: phone-only web app on GitHub Pages (2026-11-10)
+## Current: prompts 2–12 adapted to the phone-only app (v2, 2026-11-10)
+
+The owner asked for "everything" from the prompt pack inside the GitHub Pages
+app. A static site has no server, so anything needing a sign-in to another
+service, background work or native device access is replaced by the manual
+route each prompt names as its fallback.
+
+Data model v2 (`web/src/store.ts`) migrates v1 data and v1 backups
+automatically. New engines are pure TypeScript with unit tests:
+`plan.ts`, `grades.ts`, `pace.ts`, `email.ts`, `habits.ts`, `briefing.ts`,
+`session.ts`.
+
+| Prompt | What's in the app | Not possible here (why) |
+|---|---|---|
+| 2 Data model, sync, freshness | Typed v2 model, provenance (`source`, evidence quotes), UID-based re-import, source-coverage checklist per course | Sync worker, server-sent events, OAuth sources (no server) |
+| 3 Inboxes and calendar | Paste email / open .eml → review inbox (accept/edit/dismiss), cross-inbox duplicates merged as extra evidence, never acts on email instructions; .ics import incl. exams as fixed commitments | Gmail/Calendar/Graph API access |
+| 4 Canvas, syllabi, grades, meetings | Canvas Calendar Feed .ics import, weekly timetable editor, manual + CSV grade import with preview, coverage checklist | Canvas API (needs Cornell approval and a server) |
+| 5 What to study + plan | Deterministic planner (sleep/classes/commitments/buffer/daily cap as hard constraints; EDF + bounded importance/weight; strict-EDF fallback), next action with Start/Swap/Snooze, “Why this now?”, “What would change this?”, latest sensible start, infeasibility with missing minutes and competing tasks, “30 fewer minutes” and “prioritize this” previews, 7-day capacity, ICS export of the plan | Writing to Google Calendar (export .ics instead) |
+| 6 Notes from materials | Per-course notes with source field and search; per-course AI-use setting with policy reference | PDF/PPTX parsing, OCR, AI summaries (no server, no model; not sent anywhere) |
+| 7 Projects, effort, collaboration | Low/typical/high estimates, original estimate kept, steps with owner (me/teammate/undecided), handoff times, dependencies, deadlines flow back through dependencies, waiting-on-teammate, critical path, handoff-at-risk, “one question” missing-fact prompt, copyable teammate message, needs-computer/campus and focus level | Shared access for teammates |
+| 8 Grades and forecasts | Weighted groups / points, drops, excused vs posted zero, extra credit, pending items, secured points vs standing vs remaining, needed score with infeasibility, scenarios labelled “not a prediction”, rule-confirmation and source, course pressure comparison | Calibrated forecasts (needs history; shows “insufficient history”) |
+| 9 Check-ins, pace, habits | Timer with pause/resume, active vs elapsed time, finish/partial/cancel (idempotent), check-in (4 outcomes + optional minutes/focus/confidence/blocker; skipped = missing, not failure), pace learning (median, shrunk, capped 0.5–2, n shown, reset), habits (weekdays, target, grace day, pause, 4-week trend), energy level changes block length and task choice with explicit conflict | Web Push (needs a server); in-app only |
+| 10 Wellness / Screen Time | Manual screen-use check-in, iPhone App Limit instructions, connections table marking each source manual/unavailable; nothing health-related affects plans or grades | HealthKit, Google Health, Strava, FamilyControls (native/OAuth) |
+| 11 Release check | Unit + browser tests below; owner runbook in README | Live account tests (no accounts) |
+| 12 Briefing for an assistant | Allowlisted serializer, preview with field toggles, course labels anonymised by default, copy with select-text fallback; sentinel test proves notes, emails, grades, screen time are excluded | — |
+
+Checks (fixture-verified, Linux container):
+- `npm --prefix web test`: **34 passed** (also passes with `TZ=Asia/Jakarta`).
+  Includes: prompt-8 fixture (24 secured, 80% standing, 94.29% needed for
+  90%); prelim inside a 40% group counts 20%; excused vs posted zero; drop
+  lowest; extra credit; hidden grade; two prelims competing for one 90-min
+  evening (earlier wins, other 90 min short; reversing the due dates reverses
+  it; prioritize/30-fewer-minutes deltas); extension; group handoff; teammate
+  wait; deadline inheritance; phone-only filtering; low-energy choice; email
+  date parsing, quoted replies dropped, injected instructions ignored,
+  duplicate detection; exam → commitment; pace shrink/cap/reset; habit streak
+  with grace; briefing sentinels; v1→v2 migration.
+- `npm --prefix web run e2e`: **7 passed** (Chromium): add course → schedule →
+  task → next action with reasons; timer pause/resume, double-tap finish
+  records one session, check-in corrects minutes; .ics twice without
+  duplicates; email paste → accept → second inbox merged as a second source;
+  demo grades banner shows 94.29%; plan what-if; briefing excludes course
+  names; every tab fits 390 px; backup incl. a v1 backup; offline after first
+  visit; **no requests to other origins** in the checked flows.
+- Fixed during testing: bottom tab bar could cover focused controls (added
+  scroll padding); Swap now snoozes everything ranked above the chosen task;
+  default daily cap 6 h (a day was planned at ~10 h); fixed commitments show
+  real times rather than buffered ones.
+- Publish workflow now runs the unit tests before building.
+
+Not verified (owner): the new version on the iPhone.
+
+---
+
+## Earlier: phone-only web app v1 on GitHub Pages (2026-11-10)
 
 **Owner decision:** stop the self-hosted/cloud server setup; make the repo
 public and publish a static app at `https://<owner>.github.io/study-dashboard/`.

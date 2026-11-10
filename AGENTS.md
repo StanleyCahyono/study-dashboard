@@ -13,7 +13,14 @@ app is the static, device-only web app in `web/`:
   data, tokens). `scripts/check_tracked_files.py` runs in the tests and the
   pre-push hook; keep it passing.
 - Published by `.github/workflows/pages.yml` (public repo, free minutes;
-  minimal permissions; no secrets).
+  minimal permissions; no secrets). It runs `npm test` before building.
+- Planner, grades, pace, email parsing and the briefing are pure functions in
+  `web/src/*.ts` with Vitest tests (`npm --prefix web test`); keep them
+  deterministic and keep the prompt-pack fixtures passing. The briefing is an
+  allowlist: never add a field that reads notes, email text, grades, evidence,
+  habits or screen-use data.
+- Data model changes: bump `Data.v` and extend `migrate()` so old backups and
+  stored data still load.
 - `backend/` + `frontend/` (the self-hosted Tailscale version) are **paused**.
   The invariants below describe that version. They still apply if it is revived;
   the "PRIVATE remote" rule no longer applies while the owner keeps the repo

@@ -3,10 +3,20 @@
 A study planner that runs as a website on your phone:
 **https://stanleycahyono.github.io/study-dashboard/**
 
-- **Today:** current time, your next class, your next task.
-- **Tasks** and **Classes:** add what's due and your weekly schedule.
-- **More:** import a calendar file (.ics, e.g. from Canvas), back up and
-  restore, try demo data.
+- **Today:** one justified next action (Start / Swap / Snooze, “Why this
+  now?”, “What would change this?”), study timer with check-ins, energy level,
+  next fixed commitment, rest of today, habits, copyable study briefing.
+- **Plan:** 7-day capacity, deadlines that don't fit (and by how much),
+  “30 fewer minutes” and “prioritize this” previews, course priority, export
+  the plan as a calendar file.
+- **Tasks:** estimates (low/typical/high), importance, needs a computer or
+  not, project steps with teammates, handoffs, dependencies, critical path.
+- **Courses:** weekly schedule, gradebook (weighted groups or points, drops,
+  excused vs missing, extra credit, what-if, needed score, CSV import),
+  notes with search, source-coverage checklist, AI-use setting.
+- **More:** deadlines from pasted emails (review before adding, duplicates
+  merged), calendar (.ics) import, planner settings, pace learning, habits,
+  manual screen-use check-in, backup/restore, demo data.
 - Your data is stored **only in your browser on your device**. Nothing is
   uploaded; the page blocks requests to other sites. The website is public, but
   everyone who opens it sees only their own data.
@@ -19,6 +29,7 @@ The app lives in [`web/`](web/) and is published by
 cd web
 npm ci
 npm run dev        # http://127.0.0.1:5173/study-dashboard/
+npm test           # unit tests (planner, grades, email, briefing…)
 npm run e2e        # browser tests
 ```
 

@@ -1,15 +1,17 @@
 import { useEffect, useState } from "react";
 import { saveError, useData } from "./store";
 import { TodayView } from "./TodayView";
+import { PlanView } from "./PlanView";
 import { TasksView } from "./TasksView";
-import { ClassesView } from "./ClassesView";
+import { CoursesView } from "./CoursesView";
 import { MoreView } from "./MoreView";
 
-const TABS = ["Today", "Tasks", "Classes", "More"] as const;
+const TABS = ["Today", "Plan", "Tasks", "Courses", "More"] as const;
 type Tab = (typeof TABS)[number];
 
 function initialTab(): Tab {
   const h = decodeURIComponent(location.hash.slice(1));
+  if (h === "Classes") return "Courses"; // old link
   return (TABS as readonly string[]).includes(h) ? (h as Tab) : "Today";
 }
 
@@ -35,8 +37,9 @@ export default function App() {
         </p>
       )}
       {tab === "Today" && <TodayView go={setTab} />}
+      {tab === "Plan" && <PlanView />}
       {tab === "Tasks" && <TasksView />}
-      {tab === "Classes" && <ClassesView />}
+      {tab === "Courses" && <CoursesView />}
       {tab === "More" && <MoreView />}
       <nav className="tabbar" aria-label="Main">
         {TABS.map((t) => (
