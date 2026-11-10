@@ -11,7 +11,9 @@ configured, `studyctl config add-host` done.
 
 1. On the iPhone turn **Wi-Fi off** (cellular only).
 2. **Tailscale off.** Open `https://<host>.<tailnet>.ts.net` in Safari.
-   - Expected: the page **does not load** (can't connect / server not found).
+   - Expected: no private data. You see either a browser "can't connect"
+     error or, if the app was opened before, its cached offline screen
+     ("Can't reach your study computer").
 3. **Tailscale on.** Reload.
    - Expected: the **Sign in** page loads over HTTPS (padlock, no certificate warning).
 4. Before signing in, open `https://<host>.<tailnet>.ts.net/api/today`.

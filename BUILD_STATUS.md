@@ -69,11 +69,25 @@ Python 3.13 (uv, `requires-python >=3.12,<3.14`), FastAPI 0.162.2, uvicorn
 | **Cellular test, Tailscale off/on** | `docs/OWNER-TESTS.md` T1 | Off: no connection. On: sign-in page over HTTPS; `/api/today` = 401 before sign-in; only the enrolled owner sees data |
 | iPhone layout / Add to Home Screen | OWNER-TESTS T3 | Readable, no sideways scroll, installs as app |
 
-Physical test results (fill in; do not mark passed without an observation):
+Physical test results (owner-reported, 2026-11-10; do not mark passed without an observation):
 
-- T1 cellular: _not run_
+- Host install: `setup.ps1` finished green on the Windows ARM64 host (after the ARM fix below).
+- Owner enrolled on the host at http://127.0.0.1:8765/ and reached Today.
+- Tailscale: host named `desklaptop`; `tailscale serve --bg 8765` configured
+  (owner initially saw "No serve config" and re-ran it); `studyctl config
+  add-host` done; access policy replaced with the tcp:443-only grant and saved.
+- Phone signed in through the tailnet address and reached Today.
+- T1 cellular, Tailscale **off**: **PASS**. The phone showed the app's cached
+  offline screen ("Can't reach your study computer"); no private data shown.
+- T1 cellular, Tailscale **on**, and `/api/today` = `not_authenticated` in a
+  private tab: owner replied "ok next". **Not explicitly confirmed**; re-check.
+- Autostart: `install-autostart.ps1` + `Start-ScheduledTask` worked; phone
+  reached the app with no PowerShell window open. **PASS**.
 - T2 reboot: _not run_
 - T3 phone layout: _not run_
+- Disk encryption / key store on host: `studyctl serve` started for the real
+  profile, so the disk-encryption gate passed or was attested; `studyctl
+  doctor` output not yet reviewed. `backup create` not yet tried on the host.
 
 ### Known limits and decisions
 
