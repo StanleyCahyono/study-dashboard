@@ -24,7 +24,7 @@ synthetic data. "Live" means a real account or device, observed by the owner.
 
 Python 3.13 (uv, `requires-python >=3.12,<3.14`), FastAPI 0.162.2, uvicorn
 0.54.0, SQLAlchemy 2.1.8 + Alembic 1.20.1, SQLite in WAL mode, pwdlib
-(Argon2id), keyring, cryptography. React 19.3.1 + TypeScript 7.0.2 + Vite
+(Argon2id), keyring, PyNaCl. React 19.3.1 + TypeScript 7.0.2 + Vite
 8.3.7. PWA manifest + service worker that caches only the public shell.
 
 ### Migrations
@@ -35,7 +35,7 @@ Python 3.13 (uv, `requires-python >=3.12,<3.14`), FastAPI 0.162.2, uvicorn
 
 ### Checks passed (fixture-verified, Linux cloud container, 2026-11-10)
 
-- `uv run pytest`: **38 passed**. Covers: anonymous `/api` calls return 401
+- `uv run pytest`: **38 passed** (40 after the ARM fix below). Covers: anonymous `/api` calls return 401
   with `no-store`; no sign-up without a bootstrap code; code is single-use,
   expires, burns after 5 guesses; cookie flags (`__Host-`, Secure, HttpOnly,
   SameSite=Strict); CSRF and Origin enforcement; untrusted Host rejected;
@@ -89,6 +89,27 @@ Physical test results (fill in; do not mark passed without an observation):
   Credential Manager, Task Scheduler) were written but **not executed** here;
   the container is Linux.
 - Sync status is a placeholder ("No sources connected yet") until phase 2.
+
+## Phase 1 fix: Windows on ARM host (2026-11-10)
+
+Owner's first `setup.ps1` run on the host failed: the host is **Windows ARM64**
+and `cryptography` 50.x publishes no `win_arm64` wheel, so uv tried to compile
+it and stopped with "linker `link.exe` not found". `setup.ps1` also carried on
+after the failure.
+
+- Backup encryption moved from `cryptography` (AES-256-GCM) to **PyNaCl 1.6.2**
+  (libsodium XChaCha20-Poly1305), which ships `win_arm64` wheels. No backups
+  existed yet, so nothing needs migrating.
+- New `backend/tests/test_lockfile.py` walks `uv.lock` with Windows markers
+  and fails if any package Windows would install lacks a `win_arm64` or
+  `win_amd64` wheel. Checked against the old lock: it flags `cryptography`.
+  (`cryptography` remains in the lock only as a Linux-only keyring dependency.)
+- Frontend native parts (rolldown, lightningcss, TypeScript) have
+  `win32-arm64` packages in `package-lock.json`.
+- `setup.ps1` now checks every exit code and stops at the first failure.
+- `uv run pytest`: **40 passed** (Linux container). Not yet re-run on the host.
+- Smart App Control was turned off on the host by the owner while installing
+  developer tools. Defender Antivirus remains on.
 
 ## Next phase
 

@@ -66,7 +66,7 @@ uv run studyctl backup create                 # writes to <data dir>\real\backup
 uv run studyctl backup create --out E:\study-backup.sdbk
 ```
 
-Backups are AES-256-GCM encrypted with a random key stored in Credential
+Backups are encrypted (XChaCha20-Poly1305) with a random key stored in Credential
 Manager. To restore on another computer you need the **recovery key**. Show it
 once and store it **apart from the backups** (paper is fine):
 
