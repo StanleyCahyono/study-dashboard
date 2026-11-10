@@ -1,0 +1,39 @@
+# Private data must never be committed. The app stores data outside the
+# checkout; these patterns are a second line of defence.
+*.sqlite
+*.sqlite3
+*.sqlite3-*
+*.db
+*.db-wal
+*.db-shm
+*.sdbk
+*.eml
+*.ics
+*.mbox
+*.pem
+*.key
+*.p12
+*.pfx
+.env
+.env.*
+client_secret*.json
+credentials*.json
+token*.json
+backups/
+appdata/
+data/
+private/
+screenshots/
+
+# Build and tool output
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+node_modules/
+frontend/dist/
+frontend/test-results/
+frontend/playwright-report/
+*.log
+.DS_Store
+Thumbs.db

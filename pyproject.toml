@@ -1,0 +1,36 @@
+[project]
+name = "studydash"
+version = "0.1.0"
+description = "Private single-user study planner (self-hosted)."
+requires-python = ">=3.12,<3.14"
+dependencies = [
+  "fastapi==0.162.2",
+  "uvicorn==0.54.0",
+  "sqlalchemy==2.1.8",
+  "alembic==1.20.1",
+  "pwdlib[argon2]==0.3.1",
+  "keyring==25.7.0",
+  "platformdirs==4.14.5",
+  "cryptography==50.0.2",
+  "tzdata==2026.6",
+]
+
+[project.scripts]
+studyctl = "studydash.cli:main"
+
+[dependency-groups]
+dev = [
+  "pytest==9.2.0",
+  "httpx2==2.16.0",
+]
+
+[build-system]
+requires = ["hatchling==1.33.0"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["backend/studydash"]
+
+[tool.pytest.ini_options]
+testpaths = ["backend/tests"]
+addopts = "-q"
