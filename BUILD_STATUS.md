@@ -26,8 +26,12 @@ Checks (fixture-verified, Linux container, Chromium):
   three-column layout.
 - `uv run pytest`: 47 passed (paused server code still green).
 
-Not verified (owner): repo visibility switch, Pages enabled with source
-"GitHub Actions", first workflow run, the site on the iPhone, Add to Home Screen.
+Owner-reported (2026-11-10): repo switched to **public** (confirmed via the
+GitHub API), Pages source set to GitHub Actions, "Publish to GitHub Pages"
+workflow run finished green. The live site couldn't be fetched from the
+agent's sandbox (network policy), so it hasn't been checked independently yet.
+Not yet reported: the site on the iPhone, Add to Home Screen, offline use on
+the phone, and cleanup of the old VM, deploy key, Tailscale node and PC autostart.
 
 Not possible with a static site: Gmail/Calendar/Canvas background sync,
 notifications, sharing data between phone and PC (use backup export/restore).
