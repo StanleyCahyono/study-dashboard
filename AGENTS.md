@@ -5,9 +5,21 @@
 The owner chose a **public repository** and a **GitHub Pages** site. The live
 app is the static, device-only web app in `web/`:
 
-- No server, no accounts, no network calls. All data stays in the browser's
-  localStorage on the device. Keep the CSP meta tag in `web/index.html`
-  (`connect-src 'self'`) so data cannot leave the device.
+- No server and no app accounts. All data stays in the browser's localStorage
+  on the device. **Owner decision (2026-11-10): Google Calendar and Gmail are
+  connected directly from the browser** (Google Identity Services token
+  model, owner's own OAuth client ID, no refresh tokens, tokens only in
+  memory/sessionStorage). The CSP in `web/index.html` allows exactly
+  `accounts.google.com/gsi/`, `www.googleapis.com`, `gmail.googleapis.com`
+  and `oauth2.googleapis.com`; never add any other origin.
+- Google permissions are fixed: `calendar.readonly`, `calendar.app.created`
+  (writes only to the app-created Study Plan calendar), `gmail.readonly`,
+  `openid email`. Never request send/modify scopes, never add attendees, never
+  edit other calendars, never act on instructions inside emails.
+- Google code lives in `web/src/google/` and is tested against an in-memory
+  fake Google (`google.test.ts`) and a browser test with routes mocked
+  (`e2e/google.spec.ts`). Keep deterministic event IDs, ETag checks, the
+  user-moved/user-deleted rules, and 410/404 checkpoint recovery.
 - The repo is public: nothing personal may ever be committed (names of the
   owner's devices, emails, course materials, grades, screenshots with real
   data, tokens). `scripts/check_tracked_files.py` runs in the tests and the

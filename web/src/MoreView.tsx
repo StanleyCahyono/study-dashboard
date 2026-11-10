@@ -6,6 +6,7 @@ import { computePace } from "./pace";
 import { streak, weeklyRates } from "./habits";
 import { demoData } from "./demo";
 import { mergeGradebook, parseGradebook } from "./gradebook";
+import { GooglePanel } from "./GooglePanel";
 import { Details, download, fmtWhen, fromLocalInput, numOrNull, toLocalInput } from "./ui";
 
 export function MoreView() {
@@ -83,6 +84,7 @@ export function MoreView() {
         </p>
       )}
 
+      <GooglePanel />
       <EmailInbox data={data} />
 
       <section className="card" aria-labelledby="import-title">
@@ -123,15 +125,16 @@ export function MoreView() {
       <section className="card" aria-labelledby="privacy-title">
         <h2 id="privacy-title">Privacy</h2>
         <p>
-          This website is public, but your data is not: it’s saved in this browser on this device and never sent anywhere. The page blocks all network requests
-          except loading its own files. Other people who open the site see their own empty app.
+          This website is public, but your data is not: it’s saved in this browser on this device. The page can only talk to its own files and, if you connect
+          an account, directly to Google. Other people who open the site see their own empty app.
         </p>
         <Details summary="Where data can go">
           <ul className="small">
             <li>GitHub Pages: serves the app’s files. It receives normal web-server metadata (your IP address, browser), not your data.</li>
             <li>Backups and calendar exports: only where you save them.</li>
             <li>Copy study briefing / teammate message: only where you paste them.</li>
-            <li>No analytics, no AI services, no accounts.</li>
+            <li>Google (only if you connect): your browser asks Google for calendar events, matching emails, and creates/edits events in the Study Plan calendar. Sign-ins are kept only in this tab and expire within an hour.</li>
+            <li>No analytics, no AI services, no other servers.</li>
           </ul>
         </Details>
       </section>
@@ -481,10 +484,11 @@ function WellnessCard({ data }: { data: Data }) {
 
 function ConnectionsCard() {
   const rows: [string, string, string][] = [
-    ["Canvas due dates", "Manual", "Download the Calendar Feed .ics and import it above."],
-    ["Canvas grades", "Manual", "Enter scores or paste CSV under Courses → Grades."],
-    ["Gmail / Cornell email", "Manual", "Paste an email or open a .eml file above."],
-    ["Google / Outlook calendar", "Manual", "Export .ics and import; export your plan as .ics."],
+    ["Google Calendar", "Connect", "Read your calendars; publish the plan to a Study Plan calendar (Google section above)."],
+    ["Gmail", "Connect", "Read-only, filtered search → deadlines to review (Google section above)."],
+    ["Canvas due dates", "Via Google / file", "Subscribe to the Canvas feed in Google Calendar (role: Deadlines), or import the .ics above."],
+    ["Canvas grades", "Manual", "Enter scores, paste CSV, or add a gradebook file."],
+    ["Outlook / Microsoft 365", "Manual", "Paste an email or open a .eml / .ics file."],
     ["Push notifications", "Unavailable", "Needs a server. Reminders show inside the app while it’s open."],
     ["Apple Health / Fitbit", "Unavailable", "Needs a native app. Not used for planning or grades."],
     ["Strava", "Unavailable", "Use the Strava app. Its data is never imported here."],
@@ -493,7 +497,7 @@ function ConnectionsCard() {
   return (
     <section className="card" aria-labelledby="conn-title">
       <h2 id="conn-title">Connections</h2>
-      <p className="small muted">This is a website with no server, so it can’t sign in to other services. Here’s what works and how.</p>
+      <p className="small muted">This is a website with no server: it can connect to Google from your browser while it’s open, but can’t run in the background. Here’s what works and how.</p>
       <table className="list-table">
         <thead>
           <tr>
@@ -507,7 +511,7 @@ function ConnectionsCard() {
             <tr key={a}>
               <td>{a}</td>
               <td>
-                <span className={`tag ${b === "Unavailable" ? "tag-off" : ""}`}>{b === "Unavailable" ? "✕ " : "✎ "}{b}</span>
+                <span className={`tag ${b === "Unavailable" ? "tag-off" : ""}`}>{b === "Unavailable" ? "✕ " : b === "Connect" ? "⇄ " : "✎ "}{b}</span>
               </td>
               <td className="small">{c}</td>
             </tr>

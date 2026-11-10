@@ -116,6 +116,13 @@ export function busyIntervals(data: Data, from: number, to: number): Busy[] {
     const b = Date.parse(c.end);
     if (b >= from && a <= to) out.push({ start: a - buf, end: b + buf, realStart: a, realEnd: b, label: c.title, kind: "commitment" });
   }
+  // Study blocks you moved yourself in Google Calendar are kept as you placed them.
+  for (const pb of data.gplan?.published ?? []) {
+    if (pb.state !== "user_moved") continue;
+    const a = Date.parse(pb.start);
+    const b = Date.parse(pb.end);
+    if (b >= from && a <= to) out.push({ start: a, end: b, label: `${pb.title} (moved by you)`, kind: "commitment" });
+  }
   for (const ses of data.sessions) {
     if (ses.status === "running" || ses.status === "paused") {
       const a = Date.parse(ses.startedAt);
@@ -189,6 +196,11 @@ function prepare(data: Data, now: number, pace: Pace): Prep[] {
   const mine = data.tasks.filter((t) => !t.done && t.assignee !== "teammate");
   const prep: Prep[] = mine.map((t) => {
     const e = estimate(t, pace);
+    // Minutes already placed by you (moved blocks in Google Calendar) count as planned.
+    const placed = (data.gplan?.published ?? [])
+      .filter((pb) => pb.state === "user_moved" && pb.taskId === t.id && Date.parse(pb.end) > now)
+      .reduce((sum, pb) => sum + Math.round((Date.parse(pb.end) - Date.parse(pb.start)) / MIN), 0);
+    e.remaining = Math.max(0, e.remaining - placed);
     const due = t.due ? Date.parse(t.due) : null;
     const handoff = t.handoff ? Date.parse(t.handoff) : null;
     const w = taskWeight(data, t);

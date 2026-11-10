@@ -1,5 +1,66 @@
 # Build status
 
+## Current: Google Calendar + Gmail, gradebook upgrade (2026-11-10)
+
+**Owner requests:** “use Google Calendar and everything”, “link it to my
+gcal”; owner shared their grade-tracker spreadsheet (kept private: not in Git;
+a converted gradebook JSON was sent to the owner directly).
+
+Google (browser-direct, no server; `web/src/google/`):
+- Sign-in with Google Identity Services using the owner's own OAuth client ID
+  (stored on device). Identity checked against the intended address and the
+  stable Google id; tokens ~1 h, memory/sessionStorage only; revoke on
+  disconnect. Scopes: calendar.readonly, calendar.app.created, gmail.readonly,
+  openid email.
+- Calendar read: calendar list with per-calendar role (classes / fixed / busy
+  with hidden titles / deadlines→tasks / ignore); paginated full sync
+  (−7 d…+120 d, singleEvents), incremental with syncToken, 410 → full resync,
+  checkpoint saved only after all pages; cancelled and declined (owner
+  preference) removed; all-day and “free” events don't block; owner edits on
+  synced tasks preserved, due-date changes logged as evidence.
+- Gmail: owner-editable search filter + lookback; history id for “anything
+  new?”, 404 → bounded search; ≤30 messages per sync; text/plain preferred;
+  only a quote + link kept; candidates go to the review inbox; duplicates
+  across inboxes merged as evidence.
+- Study Plan calendar: created by the app; preview diff; publish with
+  deterministic event ids (lost reply → 409 → adopt, zero duplicates); ETag
+  If-Match deletes; owner-moved blocks kept (and counted by the planner as
+  that task's time), owner-deleted blocks never recreated; undo last publish;
+  optional auto-update after sync; never attendees, never other calendars.
+- Activity log; per-account errors don't stop other accounts.
+- Setup guide: `docs/GOOGLE-SETUP.md` (and in-app steps).
+
+Gradebook: per-course cutoffs (default scale marked “assumed”), Cornell 4.3
+GPA for every letter, credits, credit-weighted term GPA, Pass/Fail with
+threshold, better-of alternative schemes, extra-credit groups on top of 100%,
+“Tentative” scores (official vs projected), final-letter-only courses, and
+More → “Add grades from a file” (merge by course code). Verified locally that
+the owner's spreadsheet converts to exactly the sheet's own results (letters,
+pass/fail and term GPA 3.769 over 13 credits); those values are not stored in
+the repo. Noted to the owner: the sheet's GPA formulas return #N/A for B− and
+below, the composite divides by a fixed 13, and cutoffs jump from C+ to F.
+
+Checks (Linux container):
+- `npm --prefix web test`: **60 passed** (42 + 18 Google tests against an
+  in-memory fake Google: retries/Retry-After, 401, identity mismatch,
+  multi-page sync, moved recurring class changes free time, cancelled/declined/
+  all-day/free handling, busy titles hidden, deadlines→tasks keep owner edits,
+  410 recovery, interrupted sync without duplicates, two accounts sharing an
+  event id, Gmail incremental/expired history/quote-only/duplicate merge,
+  deterministic event ids, preview without calls, lost reply → zero
+  duplicates, moved block kept, deleted block not recreated, foreign event
+  untouched, undo, ETag 412).
+- `npm --prefix web run e2e`: **9 passed**, incl. the Google flow in Chromium
+  with Google simulated by route mocks (connect, roles, sync, plan preview,
+  publish, undo; only allowed origins contacted) and wrong-account refusal.
+
+Not verified (owner): Google Cloud client setup, real sign-in on iPhone
+Safari (pop-up behaviour), real calendars/Gmail, whether the Cornell account
+allows the app.
+
+---
+
+
 ## Current: prompts 2–12 adapted to the phone-only app (v2, 2026-11-10)
 
 The owner asked for "everything" from the prompt pack inside the GitHub Pages

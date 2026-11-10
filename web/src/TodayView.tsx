@@ -5,6 +5,8 @@ import { activeMs, activeSession, answerCheckin, cancelSession, finishSession, p
 import { isScheduled, doneOn } from "./habits";
 import { buildBriefing, DEFAULT_FIELDS, type BriefingFields } from "./briefing";
 import { copyText, Details, fmtTime, fmtWhen, mins, numOrNull, rel, Segmented, tz, useNow } from "./ui";
+import { getToken } from "./google/auth";
+import { syncAll } from "./google/sync";
 
 export type Go = (tab: "Plan" | "Tasks" | "Courses" | "More") => void;
 
@@ -97,10 +99,7 @@ export function TodayView({ go }: { go: Go }) {
 
         <section className="card" aria-labelledby="data-title">
           <h2 id="data-title">Your data</h2>
-          <p className="sync">
-            <span className="sync-icon" aria-hidden="true">◇</span>
-            Stored on this device only. Nothing is synced.
-          </p>
+          <SyncStatus data={data} go={go} />
           <p className="muted small">
             {data.courses.length} {data.courses.length === 1 ? "course" : "courses"} · {data.tasks.filter((t) => !t.done).length} open{" "}
             {data.tasks.filter((t) => !t.done).length === 1 ? "task" : "tasks"}. Export a backup under More.
@@ -417,6 +416,66 @@ function Briefing({ data, plan }: { data: Data; plan: Plan }) {
             </p>
           )}
         </div>
+      )}
+    </>
+  );
+}
+
+function SyncStatus({ data, go }: { data: Data; go: Go }) {
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<string[] | null>(null);
+  if (data.accounts.length === 0) {
+    return (
+      <p className="sync">
+        <span className="sync-icon" aria-hidden="true">◇</span>
+        Stored on this device only. No accounts connected.
+      </p>
+    );
+  }
+  const signedIn = data.accounts.filter((a) => getToken(a.id));
+  const times = data.accounts.flatMap((a) => [...a.calendars.map((c) => c.lastSync), a.gmailLastSync]).filter((x): x is string => !!x);
+  const last = times.sort().pop();
+  const errors = data.accounts.filter((a) => a.lastError || a.gmailError || a.calendars.some((c) => c.error)).length;
+  const stale = !last || Date.now() - Date.parse(last) > 6 * 3600_000;
+  return (
+    <>
+      <p className={`sync ${errors ? "sync-error" : stale ? "sync-stale" : "sync-ok"}`}>
+        <span className="sync-icon" aria-hidden="true">{errors ? "✕" : stale ? "!" : "✓"}</span>
+        {last ? `Google synced ${rel(last, new Date())}` : "Google not synced yet"}
+        {errors ? ` · ${errors} account(s) need attention` : ""}
+      </p>
+      <p className="small muted">
+        {signedIn.length}/{data.accounts.length} account(s) signed in. Syncing only happens while the app is open.
+      </p>
+      <div className="row actions">
+        {signedIn.length > 0 && (
+          <button
+            className="btn"
+            disabled={busy}
+            onClick={async () => {
+              setBusy(true);
+              try {
+                setResult(await syncAll());
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            {busy ? "Syncing…" : "Sync now"}
+          </button>
+        )}
+        {signedIn.length < data.accounts.length && (
+          <button className="btn" onClick={() => go("More")}>
+            Sign in
+          </button>
+        )}
+      </div>
+      {result && (
+        <ul className="small" role="status">
+          {result.map((r) => (
+            <li key={r}>{r}</li>
+          ))}
+        </ul>
       )}
     </>
   );

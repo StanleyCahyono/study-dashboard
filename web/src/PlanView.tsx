@@ -3,6 +3,7 @@ import { dayKey, useData } from "./store";
 import { buildPlan, lessTimeToday, planToIcs, prioritize, type Delta } from "./plan";
 import { courseGrade, coursePressure } from "./grades";
 import { download, fmtTime, fmtWhen, mins, useNow } from "./ui";
+import { PlanCalendar } from "./PlanCalendar";
 
 export function PlanView() {
   const data = useData();
@@ -29,6 +30,8 @@ export function PlanView() {
         Built from your free time (outside sleep {data.settings.sleepStart}–{data.settings.sleepEnd}, classes and commitments, with a {data.settings.bufferMinutes}-minute buffer), deadlines and estimates.{" "}
         {plan.pace.note}
       </p>
+
+      <PlanCalendar plan={plan} now={now} />
 
       {plan.atRisk.length > 0 && (
         <section className="card warn-card" aria-labelledby="risk-title">

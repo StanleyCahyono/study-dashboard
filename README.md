@@ -21,6 +21,13 @@ A study planner that runs as a website on your phone:
   uploaded; the page blocks requests to other sites. The website is public, but
   everyone who opens it sees only their own data.
 - Works offline once opened. On iPhone: Safari → Share → **Add to Home Screen**.
+- **Google Calendar and Gmail** (optional): connect from More. Your browser
+  talks to Google directly. Calendars feed your free time and deadlines; the
+  plan can be published to a private **Study Plan** calendar (preview, undo,
+  your own edits kept). Gmail is read-only and filtered. One-time setup:
+  [docs/GOOGLE-SETUP.md](docs/GOOGLE-SETUP.md).
+- **Grades**: per-course cutoffs, credits, Cornell 4.3 GPA, pass/fail,
+  better-of-two schemes, tentative scores, term GPA; import a gradebook file.
 
 The app lives in [`web/`](web/) and is published by
 [`.github/workflows/pages.yml`](.github/workflows/pages.yml) on every push.

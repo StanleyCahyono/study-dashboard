@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { saveError, useData } from "./store";
+import { getData, saveError, useData } from "./store";
+import { loadGis } from "./google/auth";
 import { TodayView } from "./TodayView";
 import { PlanView } from "./PlanView";
 import { TasksView } from "./TasksView";
@@ -18,6 +19,11 @@ function initialTab(): Tab {
 export default function App() {
   const data = useData();
   const [tab, setTab] = useState<Tab>(initialTab);
+
+  // Load Google sign-in ahead of time (only if set up) so its window can open straight from a tap.
+  useEffect(() => {
+    if (getData().googleClientId) loadGis().catch(() => undefined);
+  }, []);
 
   useEffect(() => {
     history.replaceState(null, "", `#${tab}`);
