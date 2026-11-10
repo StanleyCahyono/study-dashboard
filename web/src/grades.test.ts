@@ -15,7 +15,7 @@ const item = (p: Partial<GradeItem> & { id: string; courseId: string }): GradeIt
 
 describe("prompt 8 fixture: individually weighted 30% prelim at 80%, 70% final remaining", () => {
   const c = newCourse("AEM 1101");
-  c.grading = { mode: "weighted", rulesConfirmed: true, ruleSource: "", groups: [{ id: "p", name: "Prelim", weight: 30, dropLowest: 0 }, { id: "f", name: "Final", weight: 70, dropLowest: 0 }] };
+  c.grading = { mode: "weighted", altSchemes: [], rulesConfirmed: true, ruleSource: "", groups: [{ id: "p", name: "Prelim", weight: 30, dropLowest: 0 }, { id: "f", name: "Final", weight: 70, dropLowest: 0 }] };
   const items = [item({ id: "prelim", courseId: c.id, groupId: "p", score: 80, status: "graded" }), item({ id: "final", courseId: c.id, groupId: "f" })];
   const g = courseGrade(c, items);
 
@@ -35,7 +35,7 @@ describe("prompt 8 fixture: individually weighted 30% prelim at 80%, 70% final r
 
 describe("prelim inside a larger points-based group never gets the whole group weight", () => {
   const c = newCourse("AEM 2200");
-  c.grading = { mode: "weighted", rulesConfirmed: true, ruleSource: "", groups: [{ id: "e", name: "Exams", weight: 40, dropLowest: 0 }, { id: "o", name: "Other", weight: 60, dropLowest: 0 }] };
+  c.grading = { mode: "weighted", altSchemes: [], rulesConfirmed: true, ruleSource: "", groups: [{ id: "e", name: "Exams", weight: 40, dropLowest: 0 }, { id: "o", name: "Other", weight: 60, dropLowest: 0 }] };
   const items = [
     item({ id: "p1", courseId: c.id, groupId: "e", score: 80, status: "graded" }),
     item({ id: "p2", courseId: c.id, groupId: "e" }),
@@ -52,7 +52,7 @@ describe("prelim inside a larger points-based group never gets the whole group w
 
 describe("status rules", () => {
   const c = newCourse("ECON 1120");
-  c.grading = { mode: "points", rulesConfirmed: true, ruleSource: "", groups: [] };
+  c.grading = { mode: "points", altSchemes: [], rulesConfirmed: true, ruleSource: "", groups: [] };
   it("excused zero is removed; posted zero counts", () => {
     const excused = courseGrade(c, [item({ id: "a", courseId: c.id, score: 90, status: "graded" }), item({ id: "b", courseId: c.id, status: "excused" })]);
     const missing = courseGrade(c, [item({ id: "a", courseId: c.id, score: 90, status: "graded" }), item({ id: "b", courseId: c.id, status: "missing" })]);
@@ -70,7 +70,7 @@ describe("status rules", () => {
   });
   it("drops the lowest graded score in a group", () => {
     const d = newCourse("D 1000");
-    d.grading = { mode: "weighted", rulesConfirmed: true, ruleSource: "", groups: [{ id: "q", name: "Quizzes", weight: 100, dropLowest: 1 }] };
+    d.grading = { mode: "weighted", altSchemes: [], rulesConfirmed: true, ruleSource: "", groups: [{ id: "q", name: "Quizzes", weight: 100, dropLowest: 1 }] };
     const g = courseGrade(d, [
       item({ id: "q1", courseId: d.id, groupId: "q", possible: 10, score: 10, status: "graded" }),
       item({ id: "q2", courseId: d.id, groupId: "q", possible: 10, score: 2, status: "graded" }),
@@ -95,7 +95,7 @@ describe("unknown rules and scenarios", () => {
   });
   it("one quiz grade gives scenarios with a low-evidence label", () => {
     const c = newCourse("Y 1000");
-    c.grading = { mode: "points", rulesConfirmed: true, ruleSource: "", groups: [] };
+    c.grading = { mode: "points", altSchemes: [], rulesConfirmed: true, ruleSource: "", groups: [] };
     const g = courseGrade(c, [item({ id: "quiz", courseId: c.id, possible: 10, score: 7, status: "graded" }), item({ id: "rest", courseId: c.id, possible: 90 })]);
     const s = scenarios(g);
     expect(s.basis).toMatch(/Not a prediction/);
@@ -104,10 +104,10 @@ describe("unknown rules and scenarios", () => {
   it("course pressure ranks the course that needs more on more remaining weight higher", () => {
     const a = newCourse("AEM 1101");
     a.target = 90;
-    a.grading = { mode: "weighted", rulesConfirmed: true, ruleSource: "", groups: [{ id: "p", name: "P", weight: 30, dropLowest: 0 }, { id: "f", name: "F", weight: 70, dropLowest: 0 }] };
+    a.grading = { mode: "weighted", altSchemes: [], rulesConfirmed: true, ruleSource: "", groups: [{ id: "p", name: "P", weight: 30, dropLowest: 0 }, { id: "f", name: "F", weight: 70, dropLowest: 0 }] };
     const b = newCourse("AEM 2200");
     b.target = 80;
-    b.grading = { mode: "weighted", rulesConfirmed: true, ruleSource: "", groups: [{ id: "p", name: "P", weight: 70, dropLowest: 0 }, { id: "f", name: "F", weight: 30, dropLowest: 0 }] };
+    b.grading = { mode: "weighted", altSchemes: [], rulesConfirmed: true, ruleSource: "", groups: [{ id: "p", name: "P", weight: 70, dropLowest: 0 }, { id: "f", name: "F", weight: 30, dropLowest: 0 }] };
     const ga = courseGrade(a, [item({ id: "1", courseId: a.id, groupId: "p", score: 80, status: "graded" }), item({ id: "2", courseId: a.id, groupId: "f" })]);
     const gb = courseGrade(b, [item({ id: "3", courseId: b.id, groupId: "p", score: 85, status: "graded" }), item({ id: "4", courseId: b.id, groupId: "f" })]);
     expect(coursePressure(a, ga).score).toBeGreaterThan(coursePressure(b, gb).score);

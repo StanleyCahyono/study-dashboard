@@ -97,7 +97,7 @@ describe("data migration", () => {
   it("upgrades version 1 data without losing anything", () => {
     const v1 = { v: 1, courses: [{ id: "c", code: "AEM 1101", title: "x" }], meetings: [], tasks: [{ id: "t", courseId: "c", title: "T", due: null, allDay: false, estMinutes: 30, done: false, source: "manual" }], demo: false };
     const v2 = migrate(v1);
-    expect(v2.v).toBe(2);
+    expect(v2.v).toBe(3);
     expect(v2.tasks[0]).toMatchObject({ id: "t", title: "T", estMinutes: 30, originalEstimate: 30, assignee: "me", importance: 2 });
     expect(v2.courses[0].grading.mode).toBe("weighted");
     expect(() => migrate({ hello: 1 })).toThrow();

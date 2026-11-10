@@ -7,8 +7,11 @@ import { useCallback, useSyncExternalStore } from "react";
 export type AiUse = "unknown" | "metadata" | "local" | "external";
 export type CoverageKey = "dueDates" | "meetings" | "grades" | "syllabus";
 
-export type GradeGroup = { id: string; name: string; weight: number | null; dropLowest: number };
-export type Grading = { mode: "weighted" | "points"; groups: GradeGroup[]; rulesConfirmed: boolean; ruleSource: string };
+export type GradeGroup = { id: string; name: string; weight: number | null; dropLowest: number; extraCredit?: boolean };
+/** An alternative weighting ("Scheme 2"); the better scheme counts. */
+export type AltScheme = { id: string; name: string; weights: Record<string, number | null> };
+export type Grading = { mode: "weighted" | "points"; groups: GradeGroup[]; altSchemes: AltScheme[]; rulesConfirmed: boolean; ruleSource: string };
+export type Cutoff = { letter: string; min: number }; // min percent for the letter
 
 export type Course = {
   id: string;
@@ -16,6 +19,11 @@ export type Course = {
   title: string;
   target: number | null; // target final grade, percent
   importance: 1 | 2 | 3;
+  credits: number | null;
+  basis: "letter" | "pass_fail";
+  passThreshold: number; // percent, for pass/fail
+  cutoffs: Cutoff[] | null; // null = not entered (default scale shown as assumed)
+  finalLetter: string | null; // a final letter you already know (course not tracked here)
   grading: Grading;
   aiUse: AiUse;
   aiPolicyNote: string;
@@ -33,7 +41,18 @@ export type Meeting = {
 };
 
 /** A one-off fixed event (exam sitting, work shift, appointment). Blocks study time. */
-export type Commitment = { id: string; title: string; start: string; end: string; courseId: string | null; kind: "exam" | "fixed"; source: "manual" | "ics"; uid?: string };
+export type Commitment = {
+  id: string;
+  title: string;
+  start: string;
+  end: string;
+  courseId: string | null;
+  kind: "exam" | "fixed" | "class";
+  source: "manual" | "ics" | "google";
+  uid?: string;
+  accountId?: string;
+  link?: string;
+};
 
 export type TaskKind = "reading" | "problem set" | "writing" | "project" | "exam prep" | "other";
 
@@ -53,8 +72,9 @@ export type Task = {
   importance: 1 | 2 | 3;
   done: boolean;
   doneAt: string | null;
-  source: "manual" | "ics" | "demo" | "email";
+  source: "manual" | "ics" | "demo" | "email" | "google";
   uid?: string;
+  accountId?: string;
   parentId: string | null; // project this belongs to
   dependsOn: string[];
   assignee: "me" | "teammate" | "unassigned";
@@ -66,7 +86,7 @@ export type Task = {
   evidence: string[]; // short source quotes
 };
 
-export type GradeStatus = "pending" | "graded" | "missing" | "excused";
+export type GradeStatus = "pending" | "graded" | "projected" | "missing" | "excused";
 export type GradeItem = {
   id: string;
   courseId: string;
@@ -108,7 +128,50 @@ export type InboxItem = {
   sender: string;
   status: "pending" | "accepted" | "dismissed" | "duplicate";
   taskId: string | null;
+  accountId?: string;
+  link?: string;
 };
+
+/** How a Google calendar's events are used. */
+export type CalRole = "ignore" | "classes" | "fixed" | "busy" | "deadlines";
+export type GCal = { id: string; summary: string; primary: boolean; role: CalRole; syncToken: string | null; lastSync: string | null; error: string | null };
+export type GAccount = {
+  id: string;
+  email: string; // the address the owner intended; verified against Google on connect
+  sub: string | null; // Google's stable account id
+  useCalendar: boolean;
+  useMail: boolean;
+  calendars: GCal[];
+  gmailQuery: string;
+  gmailLookbackDays: number;
+  gmailHistoryId: string | null;
+  gmailSeen: string[];
+  gmailLastSync: string | null;
+  gmailError: string | null;
+  connectedAt: string;
+  lastError: string | null;
+};
+export type PublishedBlock = {
+  key: string; // taskId|startMs
+  eventId: string;
+  etag: string;
+  start: string;
+  end: string;
+  taskId: string;
+  title: string;
+  publishedAt: string;
+  state: "active" | "user_moved" | "user_deleted" | "removed";
+};
+export type GooglePlan = {
+  accountId: string | null;
+  calendarId: string | null;
+  auto: boolean;
+  published: PublishedBlock[];
+  suppressed: string[]; // keys the owner deleted in Google: never recreated
+  lastPublish: string | null;
+  lastCreated: string[]; // keys created by the last publish (for undo)
+};
+export type LogEntry = { at: string; source: string; message: string };
 
 export type Settings = {
   sleepStart: string; // "23:30"
@@ -125,7 +188,7 @@ export type Settings = {
 };
 
 export type Data = {
-  v: 2;
+  v: 3;
   courses: Course[];
   meetings: Meeting[];
   commitments: Commitment[];
@@ -139,6 +202,11 @@ export type Data = {
   settings: Settings;
   paceResetAt: string | null;
   demo: boolean;
+  googleClientId: string;
+  includeDeclined: boolean;
+  accounts: GAccount[];
+  gplan: GooglePlan;
+  log: LogEntry[];
 };
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -157,7 +225,7 @@ export const DEFAULT_SETTINGS: Settings = {
 
 export function emptyData(): Data {
   return {
-    v: 2,
+    v: 3,
     courses: [],
     meetings: [],
     commitments: [],
@@ -171,7 +239,41 @@ export function emptyData(): Data {
     settings: { ...DEFAULT_SETTINGS },
     paceResetAt: null,
     demo: false,
+    googleClientId: "",
+    includeDeclined: false,
+    accounts: [],
+    gplan: emptyPlan(),
+    log: [],
   };
+}
+
+export function emptyPlan(): GooglePlan {
+  return { accountId: null, calendarId: null, auto: false, published: [], suppressed: [], lastPublish: null, lastCreated: [] };
+}
+
+export const DEFAULT_GMAIL_QUERY = '(from:instructure.com OR from:canvas OR subject:(due OR deadline OR reminder OR prelim OR exam OR quiz OR assignment OR submission))';
+
+export function newAccount(email: string): GAccount {
+  return {
+    id: newId(),
+    email: email.trim().toLowerCase(),
+    sub: null,
+    useCalendar: true,
+    useMail: false,
+    calendars: [],
+    gmailQuery: DEFAULT_GMAIL_QUERY,
+    gmailLookbackDays: 14,
+    gmailHistoryId: null,
+    gmailSeen: [],
+    gmailLastSync: null,
+    gmailError: null,
+    connectedAt: new Date().toISOString(),
+    lastError: null,
+  };
+}
+
+export function addLog(d: Data, source: string, message: string): Data {
+  return { ...d, log: [{ at: new Date().toISOString(), source, message }, ...d.log].slice(0, 200) };
 }
 
 export function newCourse(code: string, title = "", id = newId()): Course {
@@ -181,7 +283,12 @@ export function newCourse(code: string, title = "", id = newId()): Course {
     title,
     target: null,
     importance: 2,
-    grading: { mode: "weighted", groups: [], rulesConfirmed: false, ruleSource: "" },
+    credits: null,
+    basis: "letter",
+    passThreshold: 60,
+    cutoffs: null,
+    finalLetter: null,
+    grading: { mode: "weighted", groups: [], altSchemes: [], rulesConfirmed: false, ruleSource: "" },
     aiUse: "unknown",
     aiPolicyNote: "",
     coverage: { dueDates: false, meetings: false, grades: false, syllabus: false },
@@ -220,10 +327,10 @@ export function newTask(fields: Partial<Task> & { title: string }): Task {
 
 const KEY = "study-data-v1";
 
-/** Accepts version 1 (first release) or 2 and returns a complete version 2 object. */
+/** Accepts versions 1–3 and returns a complete current-version object. */
 export function migrate(x: unknown): Data {
   const d = x as Record<string, unknown>;
-  if (!d || (d.v !== 1 && d.v !== 2) || !Array.isArray(d.courses) || !Array.isArray(d.meetings) || !Array.isArray(d.tasks)) {
+  if (!d || (d.v !== 1 && d.v !== 2 && d.v !== 3) || !Array.isArray(d.courses) || !Array.isArray(d.meetings) || !Array.isArray(d.tasks)) {
     throw new Error("This isn’t a Study backup file.");
   }
   const base = emptyData();
@@ -253,6 +360,11 @@ export function migrate(x: unknown): Data {
     settings: { ...DEFAULT_SETTINGS, ...((d.settings as Partial<Settings>) ?? {}) },
     paceResetAt: (d.paceResetAt as string | null) ?? null,
     demo: Boolean(d.demo),
+    googleClientId: typeof d.googleClientId === "string" ? d.googleClientId : "",
+    includeDeclined: Boolean(d.includeDeclined),
+    accounts: arr<GAccount>("accounts").map((a) => ({ ...newAccount(a.email ?? ""), ...a })),
+    gplan: { ...emptyPlan(), ...((d.gplan as Partial<GooglePlan>) ?? {}) },
+    log: arr<LogEntry>("log"),
   };
 }
 

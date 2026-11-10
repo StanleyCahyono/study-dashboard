@@ -5,6 +5,7 @@ import { extractCandidates, looksLikeSame, parseEml } from "./email";
 import { computePace } from "./pace";
 import { streak, weeklyRates } from "./habits";
 import { demoData } from "./demo";
+import { mergeGradebook, parseGradebook } from "./gradebook";
 import { Details, download, fmtWhen, fromLocalInput, numOrNull, toLocalInput } from "./ui";
 
 export function MoreView() {
@@ -12,6 +13,20 @@ export function MoreView() {
   const [msg, setMsg] = useState<string | null>(null);
   const icsRef = useRef<HTMLInputElement>(null);
   const backupRef = useRef<HTMLInputElement>(null);
+  const gradebookRef = useRef<HTMLInputElement>(null);
+
+  async function onGradebook(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    try {
+      const r = mergeGradebook(getData(), parseGradebook(JSON.parse(await file.text())));
+      replaceAll(r.data);
+      setMsg(`Gradebook added: ${r.added.length} new course(s)${r.added.length ? ` (${r.added.join(", ")})` : ""}, ${r.updated.length} updated, ${r.items} graded items. Tasks, notes and other courses were not changed.`);
+    } catch (err) {
+      setMsg(err instanceof Error ? err.message : "That file couldn’t be read.");
+    }
+  }
 
   async function onIcs(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -79,6 +94,13 @@ export function MoreView() {
         </p>
         <input ref={icsRef} type="file" accept=".ics,text/calendar" hidden onChange={onIcs} aria-label="Calendar file" />
         <button className="btn primary" onClick={() => icsRef.current?.click()}>Choose .ics file</button>
+      </section>
+
+      <section className="card" aria-labelledby="gradebook-title">
+        <h2 id="gradebook-title">Add grades from a file</h2>
+        <p className="small">Adds or updates courses from a gradebook file (credits, cutoffs, groups, schemes, scores). Your tasks, notes and other courses stay as they are.</p>
+        <input ref={gradebookRef} type="file" accept="application/json,.json" hidden onChange={onGradebook} aria-label="Gradebook file" />
+        <button className="btn" onClick={() => gradebookRef.current?.click()}>Choose gradebook file</button>
       </section>
 
       <SettingsCard data={data} />

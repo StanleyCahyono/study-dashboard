@@ -330,3 +330,7 @@ legend { font-weight: 500; margin-bottom: 4px; padding: 0; }
 .tabbar .tab { min-width: 0; padding: 0 4px; }
 /* Keep focused or scrolled-to elements clear of the fixed bottom tab bar. */
 html { scroll-padding-bottom: calc(88px + env(safe-area-inset-bottom)); scroll-padding-top: 16px; }
+.scheme { border: 1px solid var(--border); border-radius: 8px; padding: 8px; display: grid; gap: 6px; }
+.inline-weight { display: grid; grid-template-columns: 1fr 6em; align-items: center; gap: 8px; font-weight: 400; }
+.inline-weight input { min-height: 36px; padding: 4px 8px; }
+.cutoffs { display: grid; gap: 4px; grid-template-columns: repeat(auto-fill, minmax(9em, 1fr)); }

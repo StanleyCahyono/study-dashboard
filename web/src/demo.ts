@@ -11,10 +11,10 @@ export function demoData(now = new Date()): Data {
   c.target = 88;
   const g = (name: string, weight: number) => ({ id: newId(), name, weight, dropLowest: 0 });
   const aG = [g("Prelim", 30), g("Final", 70)];
-  a.grading = { mode: "weighted", groups: aG, rulesConfirmed: true, ruleSource: "[Demo] syllabus p.2" };
+  a.grading = { mode: "weighted", altSchemes: [], groups: aG, rulesConfirmed: true, ruleSource: "[Demo] syllabus p.2" };
   const bG = [g("Exams", 40), { ...g("Quizzes", 20), dropLowest: 1 }, g("Team case", 40)];
-  b.grading = { mode: "weighted", groups: bG, rulesConfirmed: false, ruleSource: "" };
-  c.grading = { mode: "points", groups: [], rulesConfirmed: true, ruleSource: "[Demo] syllabus" };
+  b.grading = { mode: "weighted", altSchemes: [], groups: bG, rulesConfirmed: false, ruleSource: "" };
+  c.grading = { mode: "points", altSchemes: [], groups: [], rulesConfirmed: true, ruleSource: "[Demo] syllabus" };
   for (const x of [a, b, c]) x.coverage = { dueDates: true, meetings: true, grades: x !== b, syllabus: x === a };
 
   const prelim = { id: newId(), courseId: a.id, groupId: aG[0].id, name: "[Demo] Prelim", possible: 100, score: 80, status: "graded" as const, extraCredit: false, gradedAt: at(-10, 12, 0) };

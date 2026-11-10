@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { newCourse, newId, update, useData, WEEKDAYS, type AiUse, type Commitment, type Course, type CoverageKey, type Data } from "./store";
 import { GradesPanel } from "./GradesPanel";
 import { NotesPanel } from "./NotesPanel";
+import { termGpa } from "./grades";
 import { fmtTime, fmtWhen, fromLocalInput, numOrNull } from "./ui";
 
 export function CoursesView() {
@@ -23,6 +24,7 @@ export function CoursesView() {
   return (
     <main className="page" aria-labelledby="courses-title">
       <h1 id="courses-title">Courses</h1>
+      {data.courses.length > 0 && <TermGpa data={data} />}
       <form className="card form" onSubmit={addCourse} aria-label="Add a course">
         <div className="two">
           <label>
@@ -316,6 +318,44 @@ function Commitments({ data }: { data: Data }) {
         )}
         <button className="btn" type="submit">Add commitment</button>
       </form>
+    </section>
+  );
+}
+
+function TermGpa({ data }: { data: Data }) {
+  const t = termGpa(data.courses, data.gradeItems);
+  return (
+    <section className="card" aria-labelledby="gpa-title">
+      <div className="row">
+        <h2 id="gpa-title">Term GPA</h2>
+        <span className="stat">{t.gpa == null ? "—" : t.gpa.toFixed(2)}</span>
+      </div>
+      <p className="small muted">
+        Credit-weighted over {t.credits} credits, using projected letters (confirmed + tentative scores). Cornell scale: A+ = 4.3.
+      </p>
+      <table className="list-table">
+        <thead>
+          <tr>
+            <th scope="col">Course</th>
+            <th scope="col">Credits</th>
+            <th scope="col">Letter</th>
+            <th scope="col">Points</th>
+          </tr>
+        </thead>
+        <tbody>
+          {t.rows.map((r) => (
+            <tr key={r.code}>
+              <td>
+                {r.code}
+                {r.note && <span className="small muted"> · {r.note}</span>}
+              </td>
+              <td>{r.credits ?? "—"}</td>
+              <td>{r.letter ?? "—"}</td>
+              <td>{r.gpa == null ? "—" : r.gpa.toFixed(1)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </section>
   );
 }

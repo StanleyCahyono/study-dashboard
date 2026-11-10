@@ -1,17 +1,21 @@
 import { useState, type FormEvent } from "react";
 import { newId, update, type Course, type Data, type GradeItem, type GradeStatus } from "./store";
-import { courseGrade, finalIf, neededOnRemaining, parseGradeCsv, scenarios, type CsvRow } from "./grades";
+import { courseSummary, DEFAULT_CUTOFFS, finalIf, LETTERS, neededOnRemaining, parseGradeCsv, scenarios, type CsvRow } from "./grades";
 import { Details, numOrNull } from "./ui";
 
 const STATUS: [GradeStatus, string][] = [
   ["pending", "Not graded yet"],
-  ["graded", "Graded"],
+  ["graded", "Graded (confirmed)"],
+  ["projected", "Tentative (my estimate)"],
   ["missing", "Missing (counts as 0)"],
   ["excused", "Excused (doesn’t count)"],
 ];
 
 export function GradesPanel({ course, data }: { course: Course; data: Data }) {
-  const g = courseGrade(course, data.gradeItems);
+  const summary = courseSummary(course, data.gradeItems);
+  const g = summary.official;
+  const pg = summary.projected;
+  const hasTentative = data.gradeItems.some((i) => i.courseId === course.id && i.status === "projected");
   const items = data.gradeItems.filter((i) => i.courseId === course.id);
   const [whatIf, setWhatIf] = useState("");
   const setCourse = (patch: Partial<Course>) => update((d) => ({ ...d, courses: d.courses.map((c) => (c.id === course.id ? { ...c, ...patch } : c)) }));
@@ -28,8 +32,18 @@ export function GradesPanel({ course, data }: { course: Course; data: Data }) {
     <div className="grades">
       <div className="stats">
         <div>
+          <span className="stat">
+            {summary.letter ?? "—"}
+            {summary.gpa != null && <span className="small"> ({summary.gpa.toFixed(1)})</span>}
+          </span>
+          <span className="small muted">
+            {summary.basis === "final_letter" ? "Final letter" : summary.basis === "pass_fail" ? `Pass/Fail at ${course.passThreshold}%` : hasTentative ? "Projected letter" : "Letter so far"}
+            {summary.assumedCutoffs && " (cutoffs assumed)"}
+          </span>
+        </div>
+        <div>
           <span className="stat">{g.standing == null ? "—" : `${g.standing}%`}</span>
-          <span className="small muted">Standing on graded work</span>
+          <span className="small muted">Standing on confirmed work{hasTentative && pg.standing != null ? ` · ${pg.standing}% with tentative` : ""}</span>
         </div>
         <div>
           <span className="stat">{g.secured}</span>
@@ -40,6 +54,11 @@ export function GradesPanel({ course, data }: { course: Course; data: Data }) {
           <span className="small muted">Still to be graded</span>
         </div>
       </div>
+      {summary.scheme && (
+        <p className="small">
+          Using <strong>{summary.scheme.name}</strong> (better of {summary.schemes.map((x) => `${x.name} ${x.projected.standing ?? "—"}%`).join(" vs ")}).
+        </p>
+      )}
       {need && target != null && (
         <p className={need.kind === "impossible" ? "banner warn" : "banner"}>
           {need.kind === "already" && `Your ${target}% target is already secured.`}
@@ -150,6 +169,120 @@ export function GradesPanel({ course, data }: { course: Course; data: Data }) {
               </button>
             </>
           )}
+          {course.grading.mode === "weighted" && course.grading.groups.length > 0 && (
+            <>
+              {course.grading.groups.map((grp) => (
+                <label key={grp.id} className="check small">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(grp.extraCredit)}
+                    onChange={(e) => setGrading({ groups: course.grading.groups.map((x) => (x.id === grp.id ? { ...x, extraCredit: e.target.checked } : x)) })}
+                  />
+                  <span>“{grp.name}” is extra credit on top of 100%</span>
+                </label>
+              ))}
+              <h3>Alternative schemes (the better one counts)</h3>
+              {course.grading.altSchemes.map((sc2) => (
+                <div key={sc2.id} className="scheme">
+                  <div className="row">
+                    <input aria-label="Scheme name" value={sc2.name} onChange={(e) => setGrading({ altSchemes: course.grading.altSchemes.map((x) => (x.id === sc2.id ? { ...x, name: e.target.value } : x)) })} />
+                    <button className="icon-btn" aria-label={`Remove ${sc2.name}`} onClick={() => setGrading({ altSchemes: course.grading.altSchemes.filter((x) => x.id !== sc2.id) })}>
+                      ✕
+                    </button>
+                  </div>
+                  {course.grading.groups.map((grp) => (
+                    <label key={grp.id} className="inline-weight">
+                      <span>{grp.name} %</span>
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        min={0}
+                        max={100}
+                        value={sc2.weights[grp.id] ?? ""}
+                        onChange={(e) =>
+                          setGrading({ altSchemes: course.grading.altSchemes.map((x) => (x.id === sc2.id ? { ...x, weights: { ...x.weights, [grp.id]: numOrNull(e.target.value) } } : x)) })
+                        }
+                      />
+                    </label>
+                  ))}
+                </div>
+              ))}
+              <button
+                className="btn"
+                onClick={() =>
+                  setGrading({
+                    altSchemes: [
+                      ...course.grading.altSchemes,
+                      { id: newId(), name: `Scheme ${course.grading.altSchemes.length + 2}`, weights: Object.fromEntries(course.grading.groups.map((x) => [x.id, x.weight])) },
+                    ],
+                  })
+                }
+              >
+                Add alternative scheme
+              </button>
+            </>
+          )}
+          <div className="two">
+            <label>
+              Credits
+              <input type="number" inputMode="decimal" min={0} max={12} value={course.credits ?? ""} onChange={(e) => setCourse({ credits: numOrNull(e.target.value) })} />
+            </label>
+            <label>
+              Graded as
+              <select value={course.basis} onChange={(e) => setCourse({ basis: e.target.value as Course["basis"] })}>
+                <option value="letter">Letter grade</option>
+                <option value="pass_fail">Pass / Fail</option>
+              </select>
+            </label>
+          </div>
+          {course.basis === "pass_fail" ? (
+            <label>
+              Pass at (%)
+              <input type="number" inputMode="decimal" min={0} max={100} value={course.passThreshold} onChange={(e) => setCourse({ passThreshold: Number(e.target.value) || 0 })} />
+            </label>
+          ) : (
+            <fieldset>
+              <legend>Letter cutoffs (minimum %)</legend>
+              {course.cutoffs == null ? (
+                <p className="small muted">
+                  Not entered: the usual scale (A ≥ 93, A- ≥ 90, …) is assumed.{" "}
+                  <button className="link inline" onClick={() => setCourse({ cutoffs: DEFAULT_CUTOFFS.map((c) => ({ ...c })) })}>
+                    Enter this course’s cutoffs
+                  </button>
+                </p>
+              ) : (
+                <div className="cutoffs">
+                  {course.cutoffs.map((c, idx) => (
+                    <label key={c.letter} className="inline-weight">
+                      <span>{c.letter}</span>
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        min={0}
+                        max={110}
+                        value={c.min}
+                        onChange={(e) => setCourse({ cutoffs: course.cutoffs!.map((x, j) => (j === idx ? { ...x, min: Number(e.target.value) || 0 } : x)) })}
+                      />
+                    </label>
+                  ))}
+                  <button className="link inline" onClick={() => setCourse({ cutoffs: null })}>
+                    Use the assumed scale
+                  </button>
+                </div>
+              )}
+            </fieldset>
+          )}
+          <label>
+            Final letter already known (course not tracked here)
+            <select value={course.finalLetter ?? ""} onChange={(e) => setCourse({ finalLetter: e.target.value || null })}>
+              <option value="">Not final yet</option>
+              {LETTERS.map((l) => (
+                <option key={l} value={l}>
+                  {l}
+                </option>
+              ))}
+            </select>
+          </label>
           <label>
             Where these rules come from (e.g. syllabus p.3, dated)
             <input value={course.grading.ruleSource} onChange={(e) => setGrading({ ruleSource: e.target.value })} maxLength={300} />
