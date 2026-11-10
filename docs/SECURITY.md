@@ -24,17 +24,38 @@
   offline cache holds only the public app shell (HTML, JS, CSS, icons).
 - Security headers: strict Content-Security-Policy, no framing, no referrer.
 
+## Saved copy on the phone
+
+If you leave **Keep a locked copy on this device** ticked when signing in, the
+phone stores your latest Today screen so you can read it when the server can't
+be reached.
+
+- What is saved: the Today data (next class, next task, overdue count, sync
+  status). Nothing else yet. Later phases will list anything they add here.
+- How it's protected: encrypted (AES-256-GCM) with a random key that the
+  server creates for that one signed-in device. That key is itself encrypted
+  with a key derived from your passphrase (PBKDF2-SHA256, 600,000 rounds).
+  Opening the copy offline needs your passphrase. The passphrase is never
+  stored.
+- It's read-only and clearly marked **Saved copy · not live**.
+- It's deleted when you sign out, when the device is signed out from the
+  Devices page or `studyctl sessions revoke`, when the session expires (the
+  next time the phone reaches the server), or with **Delete saved copy**.
+- Limits: someone who had your unlocked phone *and* your passphrase could read
+  it. If a phone is lost while offline, its copy stays on it until it next
+  reaches the server; iPhone storage encryption and your passphrase protect
+  it until then.
+
 ## Recovering access (forgot passphrase)
 
-On the host:
+On the server (cloud SSH window, inside `study-dashboard`) or the Windows host:
 
-```powershell
+```bash
 uv run studyctl enroll --reset
 ```
 
 This clears the passphrase, signs out every device, and prints a new one-time
-code. Your study data is kept. Open http://127.0.0.1:8765/ on the host and
-enroll again.
+code. Your study data is kept. Open the app and enroll again with the code.
 
 ## Signing out a lost or old device
 
@@ -48,7 +69,8 @@ enroll again.
 
 The real profile refuses to start unless the data drive is encrypted
 (BitLocker / Device Encryption on Windows; FileVault on macOS; dm-crypt on
-Linux). If detection can't confirm it but you know the drive is encrypted, run
+Linux; on a Google Cloud server, Google's at-rest disk encryption, which uses
+keys Google manages). If detection can't confirm it but you know the drive is encrypted, run
 `uv run studyctl attest-disk-encryption`; the attestation and date are saved
 in the profile config. The demo profile holds only synthetic data and skips
 this check.
@@ -56,8 +78,10 @@ this check.
 ## Keys
 
 Keys are kept in the OS key store (Windows Credential Manager) under
-`StudyDashboard/<profile>`, never in the repository, the database, or the
-browser bundle.
+`StudyDashboard/<profile>`. A cloud server has no such store, so there they
+live in `~/.config/StudyDashboard/keys/<profile>.json`, readable only by the
+service account (the app refuses to use the file if its permissions are
+looser). Never in the repository, the database, or the browser bundle.
 
 ## Encrypted backups
 
@@ -66,8 +90,8 @@ uv run studyctl backup create                 # writes to <data dir>\real\backup
 uv run studyctl backup create --out E:\study-backup.sdbk
 ```
 
-Backups are encrypted (XChaCha20-Poly1305) with a random key stored in Credential
-Manager. To restore on another computer you need the **recovery key**. Show it
+Backups are encrypted (XChaCha20-Poly1305) with a random key stored in the
+key store. To restore on another computer you need the **recovery key**. Show it
 once and store it **apart from the backups** (paper is fine):
 
 ```powershell

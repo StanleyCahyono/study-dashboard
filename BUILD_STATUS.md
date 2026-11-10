@@ -125,6 +125,54 @@ after the failure.
 - Smart App Control was turned off on the host by the owner while installing
   developer tools. Defender Antivirus remains on.
 
+## Phase 1b: always-on cloud host + encrypted phone copy (2026-11-10)
+
+**Owner decisions:** the app must work while the PC is off → production host
+moves to a **free-tier Google Cloud e2-micro** Linux VM (owner accepted that
+data then sits on Google-managed encrypted disks). The phone keeps an
+**encrypted saved copy** of the latest Today data, opened offline with the
+passphrase.
+
+What changed:
+- `keystore: "file"`: owner-only (0600 file, 0700 dir) key file under
+  `~/.config/StudyDashboard/keys/` for headless Linux; refuses loose
+  permissions. `studyctl config set-keystore file|os`.
+- Disk check recognises Google Compute Engine (`/sys/class/dmi/id/product_name`)
+  as provider-encrypted.
+- `scripts/server-setup.sh` (Debian 12: swap, uv, Node 22, build, tests,
+  file key store, systemd unit `studydash.service`) and
+  `scripts/server-update.sh`.
+- `docs/CLOUD-SERVER.md`: account + $1 budget alert, e2-micro in a free
+  region with a Standard disk, no HTTP/HTTPS firewall rules, Tailscale, a
+  read-only deploy key, install, Serve, enroll, access policy, retiring the PC.
+- Migration `0002_snapshot_key`: each session gets a random key, destroyed on
+  logout/revoke/expiry/reset; returned by login, enroll and `/api/auth/session`.
+- Frontend vault (`vault.ts`): "Keep a locked copy" checkbox (default on);
+  snapshot AES-GCM encrypted with the session key; key wrapped with
+  PBKDF2-SHA256 (600k) from the passphrase; offline unlock screen; read-only
+  "Saved copy · not live" view; wiped on sign-out, 401 (revoked/expired),
+  profile mismatch, or "Delete saved copy".
+- Service worker v2 precaches the hashed JS/CSS so the offline screen opens
+  even on the first visit.
+- `studyctl enroll` now prints the tailnet address too (servers have no browser).
+
+Checks (fixture-verified, Linux container, 2026-11-10):
+- `uv run pytest`: **47 passed** (adds snapshot-key lifecycle and file key
+  store tests).
+- `npm --prefix frontend run e2e`: **5 passed**, including: copy saved after
+  load, stored record contains no course names or passphrase, offline reload
+  shows the unlock screen, wrong passphrase rejected, right passphrase shows
+  the saved copy at 390 px, reconnect works, sign-out wipes it, and unticking
+  the box stores nothing.
+- Simulated server run (real profile, `keystore=file`, attested disk):
+  `doctor` all PASS; anonymous `/api/today` 401; unknown Host 400; encrypted
+  backup written; key file mode 0600.
+
+Not verified (owner): creating the Google Cloud VM, `server-setup.sh` on the
+real VM, Tailscale on the VM, OWNER-TESTS T4 (PC off) and T5 (saved copy on
+the iPhone). The Windows PC host from Phase 1 still runs until step 10 of
+CLOUD-SERVER.md retires it.
+
 ## Next phase
 
 Phase 2: data model, sync worker, freshness. Preserve everything above.

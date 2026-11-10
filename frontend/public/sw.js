@@ -1,10 +1,20 @@
 /* Service worker: caches ONLY the public app shell. Private data (/api/*) is
  * never cached; those responses are also sent with Cache-Control: no-store. */
-const CACHE = "studydash-shell-v1";
+const CACHE = "studydash-shell-v2";
 const SHELL = ["/", "/manifest.webmanifest", "/icons/icon-192.png", "/icons/apple-touch-icon.png"];
 
+// Precache the shell plus the hashed JS/CSS that index.html references, so the
+// app (and its offline screen) still opens when the server can't be reached.
+async function precache() {
+  const cache = await caches.open(CACHE);
+  await cache.addAll(SHELL);
+  const html = await (await cache.match("/")).text();
+  const assets = [...html.matchAll(/(?:src|href)="(\/assets\/[^"]+)"/g)].map((m) => m[1]);
+  await cache.addAll(assets);
+}
+
 self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
+  event.waitUntil(precache().then(() => self.skipWaiting()));
 });
 
 self.addEventListener("activate", (event) => {

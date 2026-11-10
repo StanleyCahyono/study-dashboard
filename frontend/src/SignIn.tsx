@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { api, ApiError, NetworkError, setCsrf, type PublicStatus } from "./api";
+import { createVault, wipeVault } from "./vault";
 
 export function SignIn({ status, onSignedIn }: { status: PublicStatus; onSignedIn: () => void }) {
   const mode: "login" | "enroll" = status.enrolled ? "login" : "enroll";
@@ -9,6 +10,7 @@ export function SignIn({ status, onSignedIn }: { status: PublicStatus; onSignedI
   const [device, setDevice] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [keepCopy, setKeepCopy] = useState(true);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -21,6 +23,12 @@ export function SignIn({ status, onSignedIn }: { status: PublicStatus; onSignedI
     try {
       const res = mode === "login" ? await api.login(pass, device) : await api.enroll(code, pass, device);
       setCsrf(res.csrf_token);
+      try {
+        if (keepCopy) await createVault(pass, res.snapshot_key, res.session_id, res.profile);
+        else await wipeVault();
+      } catch {
+        /* offline copy is optional; sign-in still succeeds */
+      }
       setPass("");
       setPass2("");
       onSignedIn();
@@ -76,6 +84,13 @@ export function SignIn({ status, onSignedIn }: { status: PublicStatus; onSignedI
           <label>
             Device name <span className="muted">(optional)</span>
             <input value={device} onChange={(e) => setDevice(e.target.value)} placeholder="e.g. My iPhone" maxLength={80} />
+          </label>
+          <label className="check">
+            <input type="checkbox" checked={keepCopy} onChange={(e) => setKeepCopy(e.target.checked)} />
+            <span>
+              Keep a locked copy on this device
+              <span className="muted small"> so I can see my latest plan when the server can’t be reached. Opens only with my passphrase; deleted when I sign out.</span>
+            </span>
           </label>
           {error && (
             <p className="error" role="alert">

@@ -1,7 +1,10 @@
 # Agent instructions (read before changing anything)
 
-This is a private, single-user study planner that runs on the owner's own
-Windows computer and is reached from their iPhone over Tailscale. Every phase
+This is a private, single-user study planner. It runs on an always-on host
+and is reached from the owner's iPhone over Tailscale. **Owner decision
+(2026-11-10):** the production host is a free-tier Google Cloud `e2-micro`
+Linux server (`docs/CLOUD-SERVER.md`) so the app works while the PC is off; a
+Windows PC host (`docs/SETUP-WINDOWS.md`) remains supported. Every phase
 must keep the invariants below. Read `BUILD_STATUS.md` for what exists and what
 is still pending, and update it at the end of every phase.
 
@@ -10,8 +13,13 @@ is still pending, and update it at the end of every phase.
 - One process: `uv run studyctl serve` (FastAPI + built React app, one origin)
   bound to **127.0.0.1 only**. Real profile on port 8765, demo on 8766.
 - Remote access is **only** through Tailscale Serve (HTTPS, tailnet-only).
-  Never add: public ingress, Tailscale Funnel, router port forwarding, a public
-  tunnel, GitHub Pages, a cloud database, paid runtime, or external analytics.
+  Never add: public ingress, cloud firewall rules for the app, Tailscale
+  Funnel, router port forwarding, a public tunnel, GitHub Pages, a managed
+  cloud database, paid runtime, or external analytics. The free-tier VM is the
+  only cloud resource; keep it inside the free tier.
+- Code must run on Windows (x64 and ARM64) and Linux x86_64. On Linux servers
+  the service is `studydash.service` (systemd), set up by
+  `scripts/server-setup.sh`; updates use `scripts/server-update.sh`.
 - The Vite dev server is for development against the demo profile only. Never
   serve production through it or expose it on the network.
 - Python deps are pinned in `pyproject.toml` + `uv.lock`; frontend deps are
@@ -34,8 +42,12 @@ is still pending, and update it at the end of every phase.
   profile marker; opening it as the other profile fails.
 - The GitHub remote must be PRIVATE. `studyctl check-remote` and the pre-push
   hook fail closed on a public or unverifiable remote.
-- Encryption keys live in the OS key store (`keyring`). The real profile
-  refuses to start unless full-disk encryption is detected or attested.
+- Encryption keys live in the OS key store (`keyring`) on Windows, or in an
+  owner-only (0600) key file under the user config dir on a headless Linux
+  server (`keystore: "file"`), never in the data directory or the repo. The
+  real profile refuses to start unless disk encryption is detected (BitLocker,
+  FileVault, dm-crypt, or cloud provider encryption on Google Compute Engine)
+  or attested.
   Backups are encrypted with XChaCha20-Poly1305 (libsodium via PyNaCl).
 - Every locked Python package must ship wheels for Windows x64 **and Windows
   ARM64** (the host is ARM). `backend/tests/test_lockfile.py` enforces this;
@@ -57,6 +69,13 @@ is still pending, and update it at the end of every phase.
   `X-Forwarded-*`. Login throttling is per account and persisted.
 - `/api/*` responses are `Cache-Control: no-store`. The service worker caches
   only the public app shell and never `/api/*`.
+- **Offline copy (owner decision 2026-11-10):** private data may be kept on a
+  device only inside the encrypted vault (`frontend/src/vault.ts`): opt-in per
+  device at sign-in, encrypted with a per-session server key that is wrapped
+  by a passphrase-derived key, opened only with the passphrase, read-only, and
+  wiped on sign-out, revocation or expiry. Anything new added to the snapshot
+  must be listed in `docs/SECURITY.md`. Never store the passphrase or the
+  unwrapped key on the device.
 - No production secret in the browser bundle.
 
 ## Testing invariants

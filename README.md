@@ -1,7 +1,12 @@
 # Study Dashboard (private)
 
-A private, single-user study planner. It runs on your own Windows computer and
-you open it from your iPhone over Tailscale. Nothing is hosted in the cloud.
+A private, single-user study planner. It runs on an always-on free Google
+Cloud server (or your own PC) and you open it from your iPhone over Tailscale.
+Nothing is public: no open ports, sign-in required, and the phone can keep an
+encrypted copy for when the server can't be reached.
+
+- **Cloud server setup (recommended):** [docs/CLOUD-SERVER.md](docs/CLOUD-SERVER.md)
+- Windows PC setup: below and [docs/SETUP-WINDOWS.md](docs/SETUP-WINDOWS.md)
 
 - **Phase 1 (this build):** sign-in, a Today screen (time, next class, next
   task, sync status), a labeled demo profile with made-up data, and an empty

@@ -42,6 +42,8 @@ export type Device = {
   current: boolean;
 };
 
+export type SignedIn = { csrf_token: string; session_id: string; profile: string; snapshot_key: string };
+
 export class ApiError extends Error {
   constructor(public status: number, public code: string, message: string, public retryAfter?: number) {
     super(message);
@@ -82,11 +84,12 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 
 export const api = {
   publicStatus: () => request<PublicStatus>("GET", "/api/public/status"),
-  session: () => request<{ csrf_token: string; profile: string; device_label: string; session_id: string }>("GET", "/api/auth/session"),
+  session: () =>
+    request<{ csrf_token: string; profile: string; device_label: string; session_id: string; snapshot_key: string }>("GET", "/api/auth/session"),
   login: (passphrase: string, device_label?: string) =>
-    request<{ csrf_token: string }>("POST", "/api/auth/login", { passphrase, device_label: device_label || undefined }),
+    request<SignedIn>("POST", "/api/auth/login", { passphrase, device_label: device_label || undefined }),
   enroll: (code: string, passphrase: string, device_label?: string) =>
-    request<{ csrf_token: string }>("POST", "/api/auth/enroll", { code, passphrase, device_label: device_label || undefined }),
+    request<SignedIn>("POST", "/api/auth/enroll", { code, passphrase, device_label: device_label || undefined }),
   logout: () => request<{ ok: true }>("POST", "/api/auth/logout"),
   today: () => request<Today>("GET", "/api/today"),
   devices: () => request<{ devices: Device[] }>("GET", "/api/auth/devices"),

@@ -40,3 +40,24 @@ Record: date, iOS version, results for steps 2–7.
 1. On the Today screen, the time ticks, no sideways scrolling, buttons are
    easy to tap with one thumb, text is readable with larger text size
    (Settings → Display → Text Size).
+
+## T4. Works with the PC off (cloud server)
+
+After following [CLOUD-SERVER.md](CLOUD-SERVER.md):
+
+1. Shut down the PC completely.
+2. On the iPhone (Tailscale on, cellular), open `https://<server>.<tailnet>.ts.net`.
+   - Expected: the app loads live (no "Saved copy" banner) and shows Today.
+
+## T5. Saved copy on the phone
+
+1. Sign in on the iPhone with **Keep a locked copy on this device** ticked,
+   and let Today load once.
+2. Turn Tailscale **off** and reopen the app from the Home Screen.
+   - Expected: "Can't reach your study server" with a passphrase box.
+3. Type a wrong passphrase → "Incorrect passphrase". Type the right one →
+   Today appears with the **Saved copy · not live** banner and its time.
+4. Turn Tailscale on → **Try to reconnect** → live Today, no banner.
+5. **Sign out**, turn Tailscale off, reopen.
+   - Expected: "There's no saved copy on this device."
+6. Sign in again (leave the box ticked) so the copy is back.

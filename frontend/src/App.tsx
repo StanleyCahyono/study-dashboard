@@ -1,10 +1,16 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, ApiError, NetworkError, setCsrf, type PublicStatus } from "./api";
 import { SignIn } from "./SignIn";
-import { TodayView } from "./TodayView";
+import { TodayView, type SessionKeys } from "./TodayView";
 import { DevicesView } from "./DevicesView";
+import { SavedView } from "./SavedView";
+import { vaultInfo, wipeVault } from "./vault";
 
-type Phase = { kind: "loading" } | { kind: "offline" } | { kind: "signed-out"; status: PublicStatus } | { kind: "signed-in"; profile: "real" | "demo" };
+type Phase =
+  | { kind: "loading" }
+  | { kind: "offline"; savedAt: string | null; hasCopy: boolean }
+  | { kind: "signed-out"; status: PublicStatus }
+  | { kind: "signed-in"; profile: "real" | "demo"; keys: SessionKeys };
 type Tab = "today" | "devices";
 
 export default function App() {
@@ -17,16 +23,23 @@ export default function App() {
       try {
         const s = await api.session();
         setCsrf(s.csrf_token);
-        setPhase({ kind: "signed-in", profile: status.profile });
+        const info = await vaultInfo();
+        // A saved copy belongs to one profile; never show demo data as real or vice versa.
+        if (info && info.profile !== status.profile) await wipeVault();
+        setPhase({ kind: "signed-in", profile: status.profile, keys: { snapshotKey: s.snapshot_key, sessionId: s.session_id } });
       } catch (e) {
         if (e instanceof ApiError && e.status === 401) {
+          // Signed out, expired or revoked: the saved copy goes too.
+          await wipeVault();
           setCsrf(null);
           setPhase({ kind: "signed-out", status });
         } else throw e;
       }
     } catch (e) {
-      if (e instanceof NetworkError || e instanceof ApiError) setPhase({ kind: "offline" });
-      else throw e;
+      if (e instanceof NetworkError || e instanceof ApiError) {
+        const info = await vaultInfo();
+        setPhase({ kind: "offline", savedAt: info?.savedAt ?? null, hasCopy: info !== null });
+      } else throw e;
     }
   }, []);
 
@@ -40,6 +53,11 @@ export default function App() {
     boot();
   }, [boot]);
 
+  const retry = useCallback(() => {
+    setPhase({ kind: "loading" });
+    boot();
+  }, [boot]);
+
   if (phase.kind === "loading") {
     return (
       <main className="page center" aria-busy="true">
@@ -48,12 +66,15 @@ export default function App() {
     );
   }
   if (phase.kind === "offline") {
+    if (phase.hasCopy) {
+      return <SavedView savedAt={phase.savedAt} onRetry={retry} onDeleted={retry} />;
+    }
     return (
       <main className="page center">
         <section className="card" aria-labelledby="offline-title">
-          <h1 id="offline-title">Can’t reach your study computer</h1>
-          <p>It may be asleep or offline, or Tailscale may be off on this device. Private data is never stored on the phone, so nothing can be shown until the connection returns.</p>
-          <button className="btn primary" onClick={() => { setPhase({ kind: "loading" }); boot(); }}>Try again</button>
+          <h1 id="offline-title">Can’t reach your study server</h1>
+          <p>It may be down or offline, or Tailscale may be off on this device. There’s no saved copy on this device.</p>
+          <button className="btn primary" onClick={retry}>Try again</button>
         </section>
       </main>
     );
@@ -69,7 +90,7 @@ export default function App() {
           <strong>DEMO</strong> · synthetic data, not your real courses
         </div>
       )}
-      {tab === "today" ? <TodayView onAuthLost={onSignedOut} /> : <DevicesView onAuthLost={onSignedOut} />}
+      {tab === "today" ? <TodayView onAuthLost={onSignedOut} keys={phase.keys} /> : <DevicesView onAuthLost={onSignedOut} />}
       <nav className="tabbar" aria-label="Main">
         <button className={tab === "today" ? "tab active" : "tab"} aria-current={tab === "today" ? "page" : undefined} onClick={() => setTab("today")}>
           Today
@@ -80,6 +101,7 @@ export default function App() {
         <button
           className="tab"
           onClick={async () => {
+            await wipeVault();
             try {
               await api.logout();
             } finally {

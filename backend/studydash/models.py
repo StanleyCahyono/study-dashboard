@@ -54,6 +54,10 @@ class AuthSession(Base):
     expires_at: Mapped[datetime] = mapped_column(UTCDateTime)
     revoked_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
     revoked_reason: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    # Random 256-bit key (base64url) the device uses to encrypt its offline
+    # copy. Destroyed when the session ends, so a revoked device can no longer
+    # get it from the server.
+    snapshot_key: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
 
 class Course(Base):

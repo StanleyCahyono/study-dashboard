@@ -21,6 +21,8 @@ class Settings:
     # Set only by `studyctl attest-disk-encryption` when automatic detection
     # cannot confirm encryption. Records what the owner attested and when.
     disk_encryption_attestation: str | None = None
+    # "os" (Windows Credential Manager / macOS Keychain) or "file" (headless Linux server).
+    keystore: str = "os"
 
     def zone(self) -> ZoneInfo:
         return ZoneInfo(self.timezone)

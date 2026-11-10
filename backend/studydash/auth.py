@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import hmac
 import secrets
@@ -192,10 +193,22 @@ def create_session(db: Session, clock: Clock, device_label: str) -> NewSession:
         created_at=now,
         last_seen_at=now,
         expires_at=now + SESSION_ABSOLUTE_TTL,
+        snapshot_key=new_snapshot_key(),
     )
     db.add(row)
     db.commit()
     return NewSession(token=token, row=row)
+
+
+def new_snapshot_key() -> str:
+    return base64.urlsafe_b64encode(secrets.token_bytes(32)).decode("ascii").rstrip("=")
+
+
+def ensure_snapshot_key(db: Session, row: AuthSession) -> str:
+    if row.snapshot_key is None:
+        row.snapshot_key = new_snapshot_key()
+        db.commit()
+    return row.snapshot_key
 
 
 def resolve_session(db: Session, clock: Clock, token: str | None) -> AuthSession | None:
@@ -208,6 +221,7 @@ def resolve_session(db: Session, clock: Clock, token: str | None) -> AuthSession
     if row.expires_at <= now or row.last_seen_at + SESSION_IDLE_TTL <= now:
         row.revoked_at = now
         row.revoked_reason = "expired"
+        row.snapshot_key = None
         db.commit()
         return None
     if now - row.last_seen_at >= LAST_SEEN_WRITE_INTERVAL:
@@ -222,6 +236,7 @@ def revoke_session(db: Session, clock: Clock, public_id: str, reason: str) -> bo
         return False
     row.revoked_at = clock()
     row.revoked_reason = reason
+    row.snapshot_key = None
     db.commit()
     return True
 
@@ -229,7 +244,9 @@ def revoke_session(db: Session, clock: Clock, public_id: str, reason: str) -> bo
 def revoke_all_sessions(db: Session, clock: Clock, reason: str) -> int:
     now = clock()
     count = db.execute(
-        update(AuthSession).where(AuthSession.revoked_at.is_(None)).values(revoked_at=now, revoked_reason=reason)
+        update(AuthSession)
+        .where(AuthSession.revoked_at.is_(None))
+        .values(revoked_at=now, revoked_reason=reason, snapshot_key=None)
     ).rowcount
     db.commit()
     return count

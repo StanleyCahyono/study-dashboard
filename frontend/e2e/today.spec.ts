@@ -71,3 +71,73 @@ test("desktop layout and sign-in with passphrase", async ({ browser }) => {
   expect(r.status()).toBe(401);
   await ctx.close();
 });
+
+async function vaultDump(page: Page): Promise<string | null> {
+  return page.evaluate(
+    () =>
+      new Promise<string | null>((resolve) => {
+        const req = indexedDB.open("studydash-offline", 1);
+        req.onupgradeneeded = () => req.result.createObjectStore("vault");
+        req.onsuccess = () => {
+          const g = req.result.transaction("vault").objectStore("vault").get("current");
+          g.onsuccess = () => resolve(g.result ? JSON.stringify(g.result) : null);
+          g.onerror = () => resolve(null);
+        };
+        req.onerror = () => resolve(null);
+      }),
+  );
+}
+
+test("phone keeps an encrypted copy that opens offline and is wiped on sign-out", async ({ browser }) => {
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+  const page = await ctx.newPage();
+  await page.goto("/");
+  await page.evaluate(() => navigator.serviceWorker.ready);
+  await page.getByLabel("Passphrase", { exact: true }).fill(PASSPHRASE);
+  await expect(page.getByLabel(/Keep a locked copy/)).toBeChecked();
+  await page.getByRole("button", { name: "Sign in" }).click();
+  await expect(page.getByRole("heading", { name: "Next class" })).toBeVisible();
+
+  await expect.poll(async () => (await vaultDump(page)) ?? "").toContain("savedAt");
+  const stored = (await vaultDump(page))!;
+  for (const secret of ["[Demo]", "AEM", "ECON", PASSPHRASE]) expect(stored).not.toContain(secret);
+
+  // Server unreachable: the cached shell opens and offers the saved copy.
+  await ctx.setOffline(true);
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "Can’t reach your study server" })).toBeVisible();
+  await page.getByLabel("Passphrase").fill("not the passphrase at all");
+  await page.getByRole("button", { name: "Open saved copy" }).click();
+  await expect(page.getByRole("alert")).toContainText("Incorrect passphrase");
+  await page.getByLabel("Passphrase").fill(PASSPHRASE);
+  await page.getByRole("button", { name: "Open saved copy" }).click();
+  await expect(page.getByRole("note")).toContainText("Saved copy");
+  await expect(page.getByText(/AEM 1101|AEM 2200|ECON 1120/).first()).toBeVisible();
+  await noHorizontalScroll(page);
+  await page.screenshot({ path: "test-results/saved-copy-390.png", fullPage: true });
+
+  // Back online: live again; signing out wipes the copy.
+  await ctx.setOffline(false);
+  await page.getByRole("button", { name: "Try to reconnect" }).click();
+  await expect(page.getByRole("button", { name: "Devices" })).toBeVisible();
+  await page.getByRole("button", { name: "Sign out", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
+  expect(await vaultDump(page)).toBeNull();
+  await ctx.setOffline(true);
+  await page.reload();
+  await expect(page.getByText("There’s no saved copy on this device.")).toBeVisible();
+  await ctx.close();
+});
+
+test("unticking the box keeps nothing on the device", async ({ browser }) => {
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true });
+  const page = await ctx.newPage();
+  await page.goto("/");
+  await page.getByLabel("Passphrase", { exact: true }).fill(PASSPHRASE);
+  await page.getByLabel(/Keep a locked copy/).uncheck();
+  await page.getByRole("button", { name: "Sign in" }).click();
+  await expect(page.getByRole("heading", { name: "Next class" })).toBeVisible();
+  await page.waitForTimeout(500);
+  expect(await vaultDump(page)).toBeNull();
+  await ctx.close();
+});

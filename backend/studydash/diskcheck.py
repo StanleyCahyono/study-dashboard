@@ -10,7 +10,7 @@ from pathlib import Path
 
 @dataclass
 class DiskStatus:
-    state: str  # "on" | "off" | "unknown"
+    state: str  # "on" | "provider" | "off" | "unknown"
     detail: str
 
 
@@ -51,7 +51,21 @@ def _mac() -> DiskStatus:
     return DiskStatus("unknown", out or "fdesetup returned nothing")
 
 
+def _cloud_provider() -> str | None:
+    try:
+        product = Path("/sys/class/dmi/id/product_name").read_text().strip()
+    except OSError:
+        return None
+    return product if product == "Google Compute Engine" else None
+
+
 def _linux(path: Path) -> DiskStatus:
+    provider = _cloud_provider()
+    if provider:
+        return DiskStatus(
+            "provider",
+            f"{provider} persistent disk: encrypted at rest by the provider with provider-managed keys",
+        )
     try:
         source = _run(["findmnt", "-no", "SOURCE", "--target", str(path)])
         if not source.startswith("/dev/"):

@@ -17,7 +17,7 @@ from .config import load_settings, save_settings
 from .db import Database
 from .keystore import (
     KeyStoreUnavailable,
-    OSKeyStore,
+    open_keystore,
     format_recovery_key,
     get_or_create_backup_key,
     parse_recovery_key,
@@ -43,7 +43,7 @@ def _local(dt) -> str:
 
 def disk_gate(paths, settings) -> tuple[bool, str]:
     status = diskcheck.detect(paths.dir)
-    if status.state == "on":
+    if status.state in ("on", "provider"):
         return True, status.detail
     if settings.disk_encryption_attestation:
         return True, f"{status.detail}; owner attestation on record: {settings.disk_encryption_attestation}"
@@ -70,7 +70,7 @@ def preflight(profile: Profile) -> tuple[object, object] | None:
             )
             return None
         try:
-            OSKeyStore(profile.value)
+            open_keystore(profile.value, settings.keystore)
         except KeyStoreUnavailable as exc:
             print(f"ERROR: {exc}", file=sys.stderr)
             return None
@@ -126,7 +126,9 @@ def cmd_enroll(args) -> int:
             return _fail(exc.message)
     print("One-time enrollment code (single use, expires " + _local(expires) + "):\n")
     print(f"    {code}\n")
-    print(f"Open http://127.0.0.1:{settings.port}/ on THIS computer, choose 'Enroll', enter the code,")
+    hosts = [f"https://{h}" for h in settings.tailnet_hostnames]
+    where = " or ".join([f"http://127.0.0.1:{settings.port}/ (this computer)"] + hosts)
+    print(f"Open {where}, enter the code,")
     print("and pick a passphrase of at least 12 characters. Do not paste this code into chats or notes.")
     if args.reset:
         print("All previous sessions were revoked. Your study data was kept.")
@@ -178,10 +180,10 @@ def cmd_doctor(args) -> int:
         ok, detail = disk_gate(paths, settings)
         report(ok, "Disk encryption", detail)
         try:
-            OSKeyStore(profile.value)
-            report(True, "OS key store reachable")
+            open_keystore(profile.value, settings.keystore)
+            report(True, f"Key store reachable ({settings.keystore})")
         except KeyStoreUnavailable as exc:
-            report(False, "OS key store", str(exc))
+            report(False, f"Key store ({settings.keystore})", str(exc))
     else:
         report(None, "Demo profile: disk encryption and key store checks skipped (synthetic data)")
     from .app import FRONTEND_DIST
@@ -189,7 +191,9 @@ def cmd_doctor(args) -> int:
     report((FRONTEND_DIST / "index.html").exists(), "Frontend built", str(FRONTEND_DIST))
     report(None, "Timezone", settings.timezone)
     report(None, "Tailnet host names", ", ".join(settings.tailnet_hostnames) or "(none yet)")
-    if shutil.which("git"):
+    if shutil.which("git") and not shutil.which("gh"):
+        report(None, "Git remote check skipped", "GitHub CLI not installed; this machine should not push")
+    elif shutil.which("git"):
         rc = check_remote_visibility("origin", quiet=True)
         report(rc == 0 if rc != 3 else None, "Git remote 'origin' is private", {0: "verified PRIVATE", 3: "no origin remote configured"}.get(rc, "NOT verified - do not push"))
     return 1 if problems else 0
@@ -225,6 +229,10 @@ def cmd_config(args) -> int:
             return _fail("Give a bare host name such as studyhost.example-tailnet.ts.net")
         if host not in settings.tailnet_hostnames:
             settings.tailnet_hostnames.append(host)
+    elif args.action == "set-keystore":
+        if args.value not in ("os", "file"):
+            return _fail("Key store must be 'os' or 'file'.")
+        settings.keystore = args.value
     elif args.action == "remove-host":
         settings.tailnet_hostnames = [h for h in settings.tailnet_hostnames if h != args.value]
     save_settings(paths, settings)
@@ -232,8 +240,12 @@ def cmd_config(args) -> int:
     return 0
 
 
+def _keystore(profile: Profile):
+    return open_keystore(profile.value, load_settings(profile_paths(profile)).keystore)
+
+
 def _backup_key(profile: Profile) -> bytes:
-    return get_or_create_backup_key(OSKeyStore(profile.value))
+    return get_or_create_backup_key(_keystore(profile))
 
 
 def cmd_backup(args) -> int:
@@ -254,7 +266,7 @@ def cmd_backup(args) -> int:
                 return _fail("Give the backup file path.")
             if args.recovery_key:
                 key = parse_recovery_key(getpass.getpass("Recovery key: "))
-                OSKeyStore(profile.value).set("backup-key-v1", base64.b64encode(key).decode())
+                _keystore(profile).set("backup-key-v1", base64.b64encode(key).decode())
             else:
                 key = _backup_key(profile)
             backup.restore_backup(Path(args.file), key, paths)
@@ -341,7 +353,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.set_defaults(func=cmd_attest)
 
     p = with_demo(sub.add_parser("config", help="show or change profile settings"))
-    p.add_argument("action", choices=["show", "set-timezone", "add-host", "remove-host"])
+    p.add_argument("action", choices=["show", "set-timezone", "add-host", "remove-host", "set-keystore"])
     p.add_argument("value", nargs="?")
     p.set_defaults(func=cmd_config)
 

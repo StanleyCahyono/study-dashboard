@@ -180,7 +180,7 @@ def create_app(
         label = body.device_label or auth.device_label_from_user_agent(request.headers.get("user-agent"))
         new = auth.create_session(db, state.clock, label)
         set_cookie(response, new.token)
-        return {"ok": True, "csrf_token": new.row.csrf_token}
+        return _signed_in(new.row)
 
     @app.post("/api/auth/login")
     def login(body: LoginBody, request: Request, response: Response, db: DB):
@@ -191,14 +191,24 @@ def create_app(
         label = body.device_label or auth.device_label_from_user_agent(request.headers.get("user-agent"))
         new = auth.create_session(db, state.clock, label)
         set_cookie(response, new.token)
-        return {"ok": True, "csrf_token": new.row.csrf_token}
+        return _signed_in(new.row)
 
     # --- authenticated endpoints -------------------------------------------
 
+    def _signed_in(row: AuthSession) -> dict:
+        return {
+            "ok": True,
+            "csrf_token": row.csrf_token,
+            "session_id": row.public_id,
+            "profile": profile.value,
+            "snapshot_key": row.snapshot_key,
+        }
+
     @app.get("/api/auth/session")
-    def session_info(sess: SessionDep):
+    def session_info(sess: SessionDep, db: DB):
         return {
             "profile": profile.value,
+            "snapshot_key": auth.ensure_snapshot_key(db, sess),
             "csrf_token": sess.csrf_token,
             "device_label": sess.device_label,
             "session_id": sess.public_id,
